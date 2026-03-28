@@ -1,0 +1,219 @@
+# 📝 futureQuant 项目进度记录
+
+## 项目信息
+- **项目名称**: futureQuant - 期货量化研究框架
+- **项目类型**: 量化交易系统
+- **开始日期**: 2026-03-20
+- **当前版本**: v0.5.0-alpha (多智能体扩展)
+- **状态**: 🔄 进行中
+- **最后更新**: 2026-03-26
+
+---
+
+## 📊 版本历史
+
+### v0.4.0-alpha (2026-03-25) - **本次更新**
+**状态**: 🔄 进行中  
+**完成度**: 97%
+
+**本次更新内容**:
+- 🔧 Bug Fix: `DataManager._get_variety_contracts()` 空实现 → 按品种活跃月份规律生成真实合约代码
+- 🔧 Bug Fix: `BacktestEngine._process_day()` 仓位手数硬编码 `* 10` → 按 max_leverage 动态计算
+- ✅ 新增: 完整 README.md（安装/快速开始/FAQ/项目结构）
+- ✅ 新增: .gitignore（Python 通用，覆盖缓存/日志/IDE）
+- ✅ 新增: `analysis/report.py` 独立绩效报告生成模块（文本/HTML/JSON 三格式输出）
+- ✅ 新增: `tests/` 测试框架（16个测试文件，含 fixtures + unit + integration）
+- ✅ `model/supervised/` XGBoost/LightGBM + FeatureEngineer + MLForecastPipeline
+- ✅ `model/time_series/` LSTM 时序模型（PyTorch，支持滚动预测、模型持久化）
+
+### v0.3.0 (2026-03-24)
+**状态**: ✅ 完成  
+**完成度**: 60%
+
+**已完成**:
+- ✅ 项目架构设计
+- ✅ 基础设施模块 (core/)
+- ✅ 数据管理模块 (data/)
+- ✅ 因子库模块 (factor/)
+- ✅ 策略模块 (strategy/)
+- ✅ 回测引擎 (backtest/)
+
+---
+
+## 🎯 当前阶段进度
+
+### 阶段一: 基础设施 ✅ 完成
+- [x] core/ 模块
+- [x] data/ 模块（含 Bug 修复）
+- [x] 配置管理
+- [x] 日志系统
+
+### 阶段二: 因子库 ✅ 完成
+- [x] 技术因子（16种）
+- [x] 基本面因子（基差/库存/仓单）
+- [x] 宏观因子
+- [x] 因子评估（IC/分层回测）
+
+### 阶段三: 策略回测 ✅ 完成
+- [x] 趋势跟踪策略
+- [x] 均值回归策略
+- [x] 套利策略
+- [x] 参数优化器
+- [x] 回测引擎（双引擎，含 Bug 修复）
+
+### 阶段四: 模型与分析 ✅ 完成
+- [x] 独立绩效分析报告生成模块（analysis/report.py）✅
+- [x] XGBoost / LightGBM 监督学习 Pipeline（model/supervised/）✅
+- [x] LSTM 时序模型（model/time_series/）✅
+
+### 阶段五: 示例与文档 ✅ 完成
+- [x] README.md ✅
+- [x] docs/API.md ✅
+- [x] Jupyter 示例 notebooks（4个：数据获取/因子评估/策略回测/机器学习）✅
+
+### 阶段六: 多智能体系统 🔄 规划中
+- [x] 需求分析文档 (MULTI_AGENT_REQUIREMENTS.md) ✅
+- [x] 技术架构文档 (MULTI_AGENT_ARCHITECTURE.md) ✅
+- [x] 重构计划文档 (MULTI_AGENT_REFACTOR_PLAN.md) ✅
+- [ ] agent/ 模块实现
+- [ ] GP 因子挖掘引擎
+- [ ] 多维度评分体系
+- [ ] Purged CV 验证框架
+- [ ] 风控监控模块
+
+### 阶段七: 测试与质量 ⏳ 待开始
+- [ ] 单元测试（目标覆盖率 80%）
+- [ ] 集成测试
+- [ ] 性能基准测试
+
+---
+
+---
+
+## 🚀 v0.5.0 (规划中) - 多智能体因子挖掘系统
+
+**目标发布**: 待定  
+**主要功能**: 基于多智能体协作的日频因子挖掘与策略自动回测
+
+### 核心功能
+- **多智能体因子挖掘**：技术因子、基本面因子、宏观因子挖掘 Agent
+- **因子质量保障**：防未来函数检测、时序交叉验证、样本权重优化
+- **多维度评估**：IC/ICIR、分层回测、稳定性、换手率、风险评分
+- **策略自动回测**：因子转策略、风险控制、绩效报告
+
+### 文档产出
+- [docs/multi-agent-factor-mining/README.md](./docs/multi-agent-factor-mining/README.md) - 模块总览
+- [docs/multi-agent-factor-mining/PRD.md](./docs/multi-agent-factor-mining/PRD.md) - 需求文档
+- [docs/multi-agent-factor-mining/ARCHITECTURE.md](./docs/multi-agent-factor-mining/ARCHITECTURE.md) - 技术架构
+- [docs/multi-agent-factor-mining/IMPLEMENTATION.md](./docs/multi-agent-factor-mining/IMPLEMENTATION.md) - 实现计划
+
+### 状态
+🔴 **规划中** - 需求分析与架构设计完成
+
+---
+
+## 🔧 Bug 修复记录
+
+| 日期 | 文件 | 问题 | 修复 |
+|------|------|------|------|
+| 2026-03-25 | data/manager.py | `_get_variety_contracts()` 只生成假合约名，无法拉取真实数据 | 按品种活跃月份规律生成候选合约，优先调用 akshare 接口 |
+| 2026-03-25 | backtest/engine.py | `target_qty = signal * weight * 10` 硬编码，仓位管理失效 | 改为 `max_leverage * initial_capital / (close_price * 100)` 动态计算 |
+
+---
+
+## 📋 下一步计划
+
+### 本周 (3月25-28日)
+- [x] README.md ✅
+- [x] .gitignore ✅
+- [x] Bug 修复（_get_variety_contracts + 仓位计算）✅
+- [x] analysis/report.py 绩效报告模块 ✅
+- [x] 测试框架构建 ✅
+- [x] model/supervised/ XGBoost/LightGBM + Pipeline ✅
+- [x] model/time_series/ LSTM + ARIMA ✅
+- [x] docs/API.md ✅
+- [ ] pytest 实际运行（环境问题待解决）
+- [ ] Jupyter 示例 notebooks
+
+### 下周 (3月31-4月4日)
+- [ ] model/time_series/ LSTM 模型实现
+- [ ] analysis/report.py 独立报告模块
+- [ ] 完成单元测试（覆盖率目标 80%）
+- [ ] Jupyter 示例 notebook
+
+### 两周后 (4月7-11日)
+- [ ] 集成测试
+- [ ] 性能基准测试
+- [ ] API 文档
+- [ ] 发布 v0.4.0
+
+---
+
+## 📝 工作日志
+
+### 2026-03-26
+- 完成多智能体系统需求分析（MULTI_AGENT_REQUIREMENTS.md）
+  - 3 个智能体：Mining / Validation / Risk Control
+  - 多维度因子评分体系（7 维度）
+  - Purged K-Fold + Walk-forward 验证
+  - 样本权重机制
+  - 防未来函数检测
+- 完成技术架构设计（MULTI_AGENT_ARCHITECTURE.md）
+  - 分层架构：API → Orchestrator → Agent → Core → Infrastructure
+  - 遗传规划因子挖掘引擎
+  - DuckDB 存储
+- 完成重构计划（MULTI_AGENT_REFACTOR_PLAN.md）
+  - 4 周分阶段实施
+  - 详细任务清单
+  - 验收标准
+
+### 2026-03-25
+- 完成 v0.4.0 开发计划制定
+- 修复 `DataManager._get_variety_contracts()` 空实现 Bug
+- 修复 `BacktestEngine._process_day()` 仓位硬编码 Bug
+- 编写完整 README.md
+- 添加 .gitignore
+- 完成测试框架构建（16个测试文件）
+- 实现 `analysis/report.py` 绩效报告模块（文本/HTML/JSON 三格式）
+- 启动 `model/supervised/` 模块开发（子 Agent）
+- 完成 `model/supervised/` XGBoost/LightGBM + Pipeline
+- 完成 `model/time_series/` LSTM + ARIMA 模型
+- 完成 `analysis/report.py` 绩效报告模块
+- 完成 `docs/API.md` API 参考文档
+
+### 2026-03-24
+- 完成阶段三（策略回测）代码实现
+- 识别5个主要问题
+- 制定 v0.4.0 改进计划
+
+### 2026-03-21
+- 完成设计文档审核
+- 修订目录结构
+- 开始阶段二实现
+
+### 2026-03-20
+- 项目启动
+- 创建初始设计文档
+- 开始阶段一实现
+
+---
+
+## 🎓 技术栈
+
+| 组件 | 版本 | 用途 |
+|------|------|------|
+| Python | 3.10+ | 后端开发 |
+| pandas | 2.0+ | 数据处理 |
+| numpy | 1.24+ | 数值计算 |
+| akshare | latest | 数据获取 |
+| pytest | 7.0+ | 测试框架 |
+| optuna | 3.3+ | 参数优化 |
+| scikit-learn | 1.3+ | 机器学习 |
+
+---
+
+## 📞 联系方式
+
+**项目负责人**: AI 助手  
+**最后更新**: 2026-03-25 22:45 GMT+8  
+**下次更新**: 2026-03-31
