@@ -6,14 +6,30 @@
 - **开始日期**: 2026-03-20
 - **当前版本**: v0.5.0-alpha (多智能体扩展)
 - **状态**: 🔄 进行中
-- **最后更新**: 2026-03-26
+- **最后更新**: 2026-03-30
 
 ---
 
 ## 📊 版本历史
 
-### v0.4.0-alpha (2026-03-25) - **本次更新**
-**状态**: 🔄 进行中  
+### v0.4.1-alpha (2026-03-30) - **本次更新**
+**状态**: 🔄 进行中
+**完成度**: 98%
+
+**本次更新内容 - 代码质量改进**:
+- 🔧 Bug Fix: FactorEngine 缓存设计缺陷修复（缓存键仅用因子名 → 改用 `(factor_name, data_hash)` 组合键，区分不同输入数据）
+- 🔧 Bug Fix: 异常链式处理（为 `backtest/engine.py` 添加 `raise ... from e` 保留原始 traceback）
+- ✅ Pydantic v2 迁移: `core/config.py` 从 `@validator` 升级到 `@field_validator`，消除 deprecation warning
+- ✅ 测试框架完善:
+  - 补全 `conftest.py` 中缺失的 `sample_ohlcv` fixture（生成多品种 OHLCV 测试数据）
+  - 添加 `cross_validator.py` 向后兼容别名类（CrossValidator/WalkForwardValidator/ExpandingWindowValidator/PurgedKFoldValidator）
+  - 修复 `LookAheadDetector` 公共接口（添加 config 属性、static_check/dynamic_check/comprehensive_check/batch_check 等方法）
+  - 修复 `SampleWeighter` 公共接口（添加 config 属性、各类 calculate_weights 方法）
+  - 修复 AST 静态分析（处理缩进源码 `textwrap.dedent`、扩充 LookAheadPattern 检测能力）
+- ✅ 测试结果: 189 tests passed ✅
+
+### v0.4.0-alpha (2026-03-25)
+**状态**: ✅ 完成
 **完成度**: 97%
 
 **本次更新内容**:
@@ -116,6 +132,10 @@
 
 | 日期 | 文件 | 问题 | 修复 |
 |------|------|------|------|
+| 2026-03-30 | factor/engine.py | FactorEngine 缓存键仅用因子名，换数据后返回旧缓存 | 改为 `(factor_name, data_hash)` 组合键，区分不同输入数据 |
+| 2026-03-30 | backtest/engine.py | 异常调试信息不完整，原始 traceback 丢失 | 添加 `raise BacktestError(f"...") from e` 保留异常链 |
+| 2026-03-30 | core/config.py | Pydantic v2 deprecation warning | 从 `@validator` 迁移到 `@field_validator` |
+| 2026-03-30 | tests/conftest.py | 缺少 `sample_ohlcv` fixture 导致 8 个测试 ERROR | 添加 fixture 生成多品种 OHLCV 测试数据 |
 | 2026-03-25 | data/manager.py | `_get_variety_contracts()` 只生成假合约名，无法拉取真实数据 | 按品种活跃月份规律生成候选合约，优先调用 akshare 接口 |
 | 2026-03-25 | backtest/engine.py | `target_qty = signal * weight * 10` 硬编码，仓位管理失效 | 改为 `max_leverage * initial_capital / (close_price * 100)` 动态计算 |
 
@@ -150,6 +170,16 @@
 ---
 
 ## 📝 工作日志
+
+### 2026-03-30
+- 完成代码质量改进:
+  - 修复 FactorEngine 缓存设计缺陷（改为 `(factor_name, data_hash)` 缓存键）
+  - 修复 Pydantic v2 兼容性（`@validator` → `@field_validator`）
+  - 添加异常链式处理（`raise ... from e`）
+  - 补全测试框架（`sample_ohlcv` fixture + 向后兼容别名类 + 公共接口）
+  - 扩充 AST 静态分析（处理缩进源码、变量赋值检测）
+- 全部测试通过: 189 tests passed ✅
+- 准备同步代码到 git 仓库
 
 ### 2026-03-26
 - 完成多智能体系统需求分析（MULTI_AGENT_REQUIREMENTS.md）

@@ -223,7 +223,8 @@ class TestFactorEngineCompute:
         engine.register(DummyFactor(name='test'))
         engine.compute(rb_data, 'test', use_cache=True)
         
-        assert 'test' in engine.cache
+        # 缓存键为 (factor_name, data_hash)，只要缓存非空即表示命中
+        assert len(engine.cache) > 0
         
         engine.clear_cache()
         

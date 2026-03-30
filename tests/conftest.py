@@ -146,6 +146,39 @@ def sample_factor_values(sample_dates) -> pd.DataFrame:
 
 
 @pytest.fixture
+def sample_ohlcv() -> pd.DataFrame:
+    """
+    生成多品种 OHLCV 测试数据（含 symbol 列）
+
+    Returns:
+        包含 RB、HC 两个品种、共 ~500 行的 OHLCV DataFrame
+        columns: [symbol, date, open, high, low, close, volume, open_interest]
+    """
+    np.random.seed(42)
+    records = []
+    dates = pd.date_range(start='2022-01-01', end='2023-12-31', freq='B')
+    for symbol, base_price in [('RB', 4200.0), ('HC', 3800.0)]:
+        prices = base_price * np.cumprod(1 + np.random.randn(len(dates)) * 0.015)
+        for i, date in enumerate(dates):
+            close = prices[i]
+            records.append({
+                'symbol': symbol,
+                'date': date.strftime('%Y-%m-%d'),
+                'open': close * (1 + np.random.randn() * 0.003),
+                'high': close * (1 + abs(np.random.randn() * 0.008)),
+                'low': close * (1 - abs(np.random.randn() * 0.008)),
+                'close': close,
+                'volume': int(np.random.randint(80000, 400000)),
+                'open_interest': int(np.random.randint(200000, 800000)),
+            })
+    df = pd.DataFrame(records)
+    # 修正 high/low 确保 high >= max(open,close), low <= min(open,close)
+    df['high'] = df[['open', 'close', 'high']].max(axis=1)
+    df['low'] = df[['open', 'close', 'low']].min(axis=1)
+    return df
+
+
+@pytest.fixture
 def sample_macro_data(sample_dates) -> pd.DataFrame:
     """
     生成模拟宏观经济数据

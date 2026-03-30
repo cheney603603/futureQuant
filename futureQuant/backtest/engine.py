@@ -261,7 +261,7 @@ class BacktestEngine(BaseBacktestEngine):
             
         except Exception as e:
             logger.error(f"Vectorized backtest failed: {e}")
-            raise BacktestError(f"Backtest failed: {e}")
+            raise BacktestError(f"Backtest failed: {e}") from e
         finally:
             self.is_running = False
     
@@ -395,7 +395,7 @@ class BacktestEngine(BaseBacktestEngine):
             
         except Exception as e:
             logger.error(f"Event-driven backtest failed: {e}")
-            raise BacktestError(f"Backtest failed: {e}")
+            raise BacktestError(f"Backtest failed: {e}") from e
         finally:
             self.is_running = False
     

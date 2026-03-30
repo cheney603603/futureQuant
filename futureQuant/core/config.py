@@ -6,7 +6,7 @@ import os
 import yaml
 from pathlib import Path
 from typing import Dict, List, Optional, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -104,7 +104,8 @@ class Config(BaseSettings):
     class Config:
         env_prefix = "FQ_"  # 环境变量前缀
         
-    @validator('varieties', pre=True)
+    @field_validator('varieties', mode='before')
+    @classmethod
     def parse_varieties(cls, v):
         if isinstance(v, str):
             return v.split(',')

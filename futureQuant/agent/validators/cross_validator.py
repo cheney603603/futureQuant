@@ -19,6 +19,31 @@ from ...core.base import Factor
 logger = get_logger('agent.cross_validator')
 
 
+def _to_dataframe(
+    factor_values: Any,
+    returns: Any = None,
+    n_splits: Optional[int] = None,
+) -> pd.DataFrame:
+    """
+    将 (factor_values, returns) 两个 Series 合并为 DataFrame，
+    供 TimeSeriesCrossValidator.split() 使用。
+
+    若 factor_values 本身已是 DataFrame，则直接返回。
+    """
+    if isinstance(factor_values, pd.DataFrame):
+        return factor_values
+
+    if returns is None:
+        # 仅有因子值，无法合并
+        return pd.DataFrame({'factor': factor_values})
+
+    df = pd.DataFrame({
+        'factor': factor_values,
+        'return': returns,
+    })
+    return df
+
+
 class TimeSeriesCrossValidator:
     """
     时序交叉验证器
@@ -209,4 +234,267 @@ class TimeSeriesCrossValidator:
             'win_rate': float((ic_arr > 0).mean()),
             'n_folds': len(ic_list),
         }
+
+
+# ---------------------------------------------------------------------------
+# 语义化别名类（供外部按验证方式直接导入使用）
+# ---------------------------------------------------------------------------
+
+class CrossValidator(TimeSeriesCrossValidator):
+    """
+    时序交叉验证器通用别名。
+
+    等同于 TimeSeriesCrossValidator，提供统一入口，默认使用 walk_forward 方法。
+    额外支持 config 字典形式的参数传入。
+    """
+
+    def __init__(
+        self,
+        method: str = 'walk_forward',
+        train_size: int = 252,
+        test_size: int = 63,
+        n_splits: int = 5,
+        purge_size: int = 5,
+        min_train_size: int = 126,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        # config 字典中的值覆盖具名参数
+        if config:
+            method = config.get('method', method)
+            train_size = config.get('train_size', train_size)
+            test_size = config.get('test_size', test_size)
+            n_splits = config.get('n_splits', n_splits)
+            purge_size = config.get('purge_size', purge_size)
+            min_train_size = config.get('min_train_size', min_train_size)
+
+        super().__init__(
+            method=method,
+            train_size=train_size,
+            test_size=test_size,
+            n_splits=n_splits,
+            purge_size=purge_size,
+            min_train_size=min_train_size,
+        )
+        # 保存 config 供外部访问
+        self.config: Dict[str, Any] = config or {
+            'method': self.method,
+            'train_size': self.train_size,
+            'test_size': self.test_size,
+            'n_splits': self.n_splits,
+            'purge_size': self.purge_size,
+            'min_train_size': self.min_train_size,
+        }
+
+
+class WalkForwardValidator(TimeSeriesCrossValidator):
+    """
+    Walk-Forward 滚动窗口验证器（语义化子类）。
+
+    自动锁定 method='walk_forward'，无需手动指定。
+    额外支持 config 字典形式的参数传入，以及 split(factor_values, returns) 签名。
+    """
+
+    def __init__(
+        self,
+        train_size: int = 252,
+        test_size: int = 63,
+        purge_size: int = 5,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        if config:
+            train_size = config.get('train_size', train_size)
+            test_size = config.get('test_size', test_size)
+            purge_size = config.get('purge_size', purge_size)
+            n_splits = config.get('n_splits', 5)
+        else:
+            n_splits = 5
+
+        super().__init__(
+            method='walk_forward',
+            train_size=train_size,
+            test_size=test_size,
+            purge_size=purge_size,
+            n_splits=n_splits,
+        )
+        self.config: Dict[str, Any] = config or {
+            'train_size': self.train_size,
+            'test_size': self.test_size,
+            'purge_size': self.purge_size,
+            'n_splits': self.n_splits,
+        }
+
+    def split(self, factor_values: Any, returns: Any = None) -> Generator[Tuple[Any, Any], None, None]:  # type: ignore[override]
+        """
+        Walk-Forward 分割，支持 (Series, Series) 或 (DataFrame,) 签名。
+
+        当 config 指定 n_splits 时，按比例划分确保精确生成 n_splits 折；
+        否则使用固定 train_size/test_size 滑动窗口。
+        """
+        data = _to_dataframe(factor_values, returns, self.n_splits)
+        n = len(data)
+        n_splits = self.config.get('n_splits', 5)
+
+        # 若有明确 n_splits，动态按比例划分（确保精确折数）
+        if n_splits and n_splits > 1:
+            train_ratio = self.config.get('train_ratio', 0.6)
+            fold_size = n // (n_splits + 1) or 1
+            train_size = max(1, int(fold_size * (n_splits * train_ratio / (1 - train_ratio + n_splits * train_ratio))))
+
+            for i in range(n_splits):
+                test_start = (i + 1) * fold_size
+                test_end = test_start + fold_size
+                if test_end > n:
+                    break
+                train_end = test_start
+                train_idx = data.index[:train_end]
+                test_idx = data.index[test_start:test_end]
+                if len(train_idx) > 0 and len(test_idx) > 0:
+                    yield train_idx, test_idx
+        else:
+            yield from super().split(data)
+
+    def validate_stability(
+        self, factor_values: pd.Series, returns: pd.Series
+    ) -> Dict[str, float]:
+        """
+        验证因子稳定性，返回 IC 统计信息。
+
+        Returns:
+            {'ic_mean', 'ic_std', 'icir', 'win_rate', 'n_folds', 'is_stable'}
+        """
+        stats = self.get_cv_stats(factor_values, returns)
+        stats['is_stable'] = (
+            abs(stats.get('icir', 0)) > 0.5 and stats.get('n_folds', 0) >= 3
+        )
+        return stats
+
+
+class ExpandingWindowValidator(TimeSeriesCrossValidator):
+    """
+    Expanding Window 扩展窗口验证器（语义化子类）。
+
+    自动锁定 method='expanding'，无需手动指定。
+    """
+
+    def __init__(
+        self,
+        test_size: int = 63,
+        purge_size: int = 5,
+        min_train_size: int = 126,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        if config:
+            test_size = config.get('test_size', test_size)
+            purge_size = config.get('purge_size', purge_size)
+            min_train_size = config.get('min_train_size', min_train_size)
+            n_splits = config.get('n_splits', 5)
+        else:
+            n_splits = 5
+
+        super().__init__(
+            method='expanding',
+            test_size=test_size,
+            purge_size=purge_size,
+            min_train_size=min_train_size,
+            n_splits=n_splits,
+        )
+        self.config: Dict[str, Any] = config or {
+            'test_size': self.test_size,
+            'purge_size': self.purge_size,
+            'min_train_size': self.min_train_size,
+            'n_splits': self.n_splits,
+        }
+
+    def split(self, factor_values: Any, returns: Any = None) -> Generator[Tuple[Any, Any], None, None]:  # type: ignore[override]
+        """
+        Expanding Window 分割，支持 (Series, Series) 或 (DataFrame,) 签名。
+
+        当 config 指定 n_splits 时，精确生成 n_splits 折，每折训练集递增。
+        """
+        data = _to_dataframe(factor_values, returns, self.n_splits)
+        n = len(data)
+        n_splits = self.config.get('n_splits', 5)
+        min_train = self.config.get('min_train_size', self.min_train_size)
+
+        if n_splits and n_splits > 1:
+            # 均匀划分 test 区间
+            test_size = max(1, (n - min_train) // n_splits)
+            for i in range(n_splits):
+                test_start = min_train + i * test_size
+                test_end = test_start + test_size
+                if test_end > n:
+                    break
+                train_idx = data.index[:test_start]
+                test_idx = data.index[test_start:test_end]
+                if len(train_idx) >= min_train and len(test_idx) > 0:
+                    yield train_idx, test_idx
+        else:
+            yield from super().split(data)
+
+    def validate_stability(
+        self, factor_values: pd.Series, returns: pd.Series
+    ) -> Dict[str, float]:
+        """验证因子稳定性，返回 IC 统计信息。"""
+        stats = self.get_cv_stats(factor_values, returns)
+        stats['is_stable'] = abs(stats.get('icir', 0)) > 0.5
+        return stats
+
+
+class PurgedKFoldValidator(TimeSeriesCrossValidator):
+    """
+    Purged K-Fold 带清洗期的 K 折验证器（语义化子类）。
+
+    自动锁定 method='purged_kfold'，无需手动指定。
+    """
+
+    def __init__(
+        self,
+        n_splits: int = 5,
+        purge_size: int = 5,
+        min_train_size: int = 126,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        if config:
+            n_splits = config.get('n_splits', n_splits)
+            purge_size = config.get('purge_gap', config.get('purge_size', purge_size))
+            min_train_size = config.get('min_train_size', min_train_size)
+
+        super().__init__(
+            method='purged_kfold',
+            n_splits=n_splits,
+            purge_size=purge_size,
+            min_train_size=min_train_size,
+        )
+        self.config: Dict[str, Any] = config or {
+            'n_splits': self.n_splits,
+            'purge_size': self.purge_size,
+            'min_train_size': self.min_train_size,
+        }
+        # purge_gap 别名
+        if 'purge_gap' not in self.config:
+            self.config['purge_gap'] = self.purge_size
+
+    def split(self, factor_values: Any, returns: Any = None) -> Generator[Tuple[Any, Any], None, None]:  # type: ignore[override]
+        """
+        Purged K-Fold 分割，支持 (Series, Series) 或 (DataFrame,) 签名。
+        """
+        data = _to_dataframe(factor_values, returns, None)
+        yield from super().split(data)
+
+    def validate_stability(
+        self, factor_values: pd.Series, returns: pd.Series
+    ) -> Dict[str, float]:
+        """验证因子稳定性，返回 IC 统计信息。"""
+        stats = self.get_cv_stats(factor_values, returns)
+        stats['is_stable'] = abs(stats.get('icir', 0)) > 0.5
+        return stats
+
+
+__all__ = [
+    'TimeSeriesCrossValidator',
+    'CrossValidator',
+    'WalkForwardValidator',
+    'ExpandingWindowValidator',
+    'PurgedKFoldValidator',
+]
 

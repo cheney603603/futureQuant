@@ -2,9 +2,10 @@
 因子计算引擎 - 因子注册、批量计算、缓存管理
 """
 
-from typing import List, Dict, Optional, Type, Union
+from typing import List, Dict, Optional, Type, Union, Tuple
 from datetime import datetime
 from pathlib import Path
+import hashlib
 import pandas as pd
 import numpy as np
 
@@ -13,6 +14,32 @@ from ..core.logger import get_logger
 from ..core.exceptions import FactorError
 
 logger = get_logger('factor.engine')
+
+
+def _data_hash(data: pd.DataFrame) -> str:
+    """
+    计算 DataFrame 的轻量哈希值，用于缓存 key 区分不同输入数据。
+
+    使用 index 范围 + shape + 首尾行数据摘要，兼顾速度与准确性。
+
+    Args:
+        data: 输入数据
+
+    Returns:
+        16 位十六进制哈希字符串
+    """
+    try:
+        index_repr = f"{data.index[0]}_{data.index[-1]}_{len(data)}"
+        shape_repr = f"{data.shape}"
+        # 取首尾各 2 行数值做摘要，避免对大数据集全量哈希
+        sample = pd.concat([data.iloc[:2], data.iloc[-2:]]).values.tobytes()
+        raw = f"{index_repr}_{shape_repr}_{hash(sample)}".encode()
+        return hashlib.md5(raw).hexdigest()[:16]
+    except Exception:
+        # 兜底：返回固定值，缓存失效但不崩溃
+        return "fallback"
+
+
 
 
 class FactorEngine:
@@ -26,7 +53,8 @@ class FactorEngine:
             cache_dir: 因子缓存目录
         """
         self.factors: Dict[str, Factor] = {}
-        self.cache: Dict[str, pd.DataFrame] = {}
+        # 缓存键为 (factor_name, data_hash)，避免换数据后返回旧结果
+        self.cache: Dict[Tuple[str, str], pd.Series] = {}
         self.cache_dir = Path(cache_dir) if cache_dir else None
         
         if self.cache_dir:
@@ -78,18 +106,19 @@ class FactorEngine:
         
         factor = self.factors[factor_name]
         
-        # 检查缓存
-        if use_cache and factor_name in self.cache:
+        # 检查缓存 —— 以 (factor_name, data_hash) 为键，防止数据变化后命中旧缓存
+        cache_key = (factor_name, _data_hash(data)) if use_cache else None
+        if use_cache and cache_key in self.cache:
             logger.debug(f"Using cached factor: {factor_name}")
-            return self.cache[factor_name]
+            return self.cache[cache_key]
         
         # 计算因子
         logger.info(f"Computing factor: {factor_name}")
         result = factor.compute(data)
         
         # 保存缓存
-        if use_cache:
-            self.cache[factor_name] = result
+        if use_cache and cache_key is not None:
+            self.cache[cache_key] = result
         
         return result
     
