@@ -1,0 +1,58 @@
+[
+  {
+    "run_id": "data_collector_1775063611272_7dba36",
+    "timestamp": "2026-04-02T01:13:31.272168",
+    "context": {
+      "symbols": [
+        "RB2505"
+      ],
+      "n_symbols": 1
+    },
+    "result_summary": {
+      "status": "success",
+      "records_fetched": 214,
+      "elapsed_seconds": 1.1344859600067139
+    },
+    "success_patterns": [
+      "fast_execution"
+    ],
+    "failure_lessons": [],
+    "tags": [
+      "data_collection",
+      "RB2505"
+    ],
+    "elapsed_seconds": 1.1344859600067139,
+    "status": "success",
+    "agent_version": "1.0"
+  },
+  {
+    "run_id": "data_collector_1775063627327_425426",
+    "timestamp": "2026-04-02T01:13:47.327240",
+    "context": {
+      "symbols": [
+        "RB2505",
+        "HC2505",
+        "I2505"
+      ],
+      "n_symbols": 3
+    },
+    "result_summary": {
+      "status": "success",
+      "records_fetched": 640,
+      "elapsed_seconds": 1.1178762912750244
+    },
+    "success_patterns": [
+      "fast_execution"
+    ],
+    "failure_lessons": [],
+    "tags": [
+      "data_collection",
+      "RB2505",
+      "HC2505",
+      "I2505"
+    ],
+    "elapsed_seconds": 1.1178762912750244,
+    "status": "success",
+    "agent_version": "1.0"
+  }
+]

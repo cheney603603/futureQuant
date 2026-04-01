@@ -1,38 +1,67 @@
 {
   "agent_name": "data_collector",
-  "status": "failed",
+  "status": "success",
   "total_steps": 7,
-  "current_step": 3,
-  "start_time": 1775062020.180143,
-  "end_time": 1775062020.511132,
-  "elapsed": 0.33098888397216797,
+  "current_step": 6,
+  "start_time": 1775063623.8176763,
+  "end_time": 1775063627.3302517,
+  "elapsed": 3.512575387954712,
   "steps": [
     {
       "step": 1,
       "name": "检查数据源健康",
       "message": "健康数据源: ['akshare']",
-      "elapsed": 0.3234221935272217,
+      "elapsed": 0.1220548152923584,
       "status": "done",
-      "timestamp": "2026-04-02T00:47:00.180143"
+      "timestamp": "2026-04-02T01:13:43.818676"
     },
     {
       "step": 2,
       "name": "确定更新范围",
       "message": "待更新标的: 3 个",
-      "elapsed": 0.005558967590332031,
+      "elapsed": 0.008993387222290039,
       "status": "done",
-      "timestamp": "2026-04-02T00:47:00.504576"
+      "timestamp": "2026-04-02T01:13:43.940706"
     },
     {
       "step": 3,
       "name": "拉取数据",
-      "message": "",
-      "elapsed": 0.0,
-      "status": "running",
-      "timestamp": "2026-04-02T00:47:00.510149"
+      "message": "完成 3/3 个",
+      "elapsed": 3.374512195587158,
+      "status": "done",
+      "timestamp": "2026-04-02T01:13:43.948724"
+    },
+    {
+      "step": 4,
+      "name": "验证数据",
+      "message": "验证记录: 640",
+      "elapsed": 0.0010044574737548828,
+      "status": "done",
+      "timestamp": "2026-04-02T01:13:47.323236"
+    },
+    {
+      "step": 5,
+      "name": "存储元数据",
+      "message": "元数据已更新",
+      "elapsed": 0.0019998550415039062,
+      "status": "done",
+      "timestamp": "2026-04-02T01:13:47.324241"
+    },
+    {
+      "step": 6,
+      "name": "记录记忆",
+      "message": "记忆已保存",
+      "elapsed": 0.003000497817993164,
+      "status": "done",
+      "timestamp": "2026-04-02T01:13:47.326241"
     }
   ],
   "summary": {},
-  "output_summary": {},
-  "progress_pct": 42.857142857142854
+  "output_summary": {
+    "records_fetched": 640,
+    "symbols_updated": 3,
+    "symbols_skipped": 0,
+    "errors": []
+  },
+  "progress_pct": 85.71428571428571
 }

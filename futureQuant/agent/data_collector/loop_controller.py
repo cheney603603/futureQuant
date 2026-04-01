@@ -177,7 +177,7 @@ class DataCollectorAgent(BaseAgent):
             total_fetched = 0
             fetch_errors = []
 
-            for i, (symbol, sd, ed) in enumerate(update_plan.items()):
+            for i, (symbol, (sd, ed)) in enumerate(update_plan.items()):
                 step_msg = f"[{i+1}/{len(update_plan)}] {symbol} ({sd} ~ {ed})"
 
                 try:
