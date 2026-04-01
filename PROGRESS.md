@@ -4,20 +4,46 @@
 - **项目名称**: futureQuant - 期货量化研究框架
 - **项目类型**: 量化交易系统
 - **开始日期**: 2026-03-20
-- **当前版本**: v0.5.0-alpha (多智能体扩展)
-- **状态**: 🔄 进行中
-- **最后更新**: 2026-03-30
+- **当前版本**: v0.6.0-alpha (7-Agent 全量实现)
+- **状态**: 🚀 活跃开发
+- **最后更新**: 2026-04-02
 
 ---
 
 ## 📊 版本历史
 
-### v0.4.1-alpha (2026-03-30) - **本次更新**
-**状态**: 🔄 进行中
-**完成度**: 98%
+### v0.6.0-alpha (2026-04-02) - **Agent 全量实现**
+**状态**: ✅ 完成
+**完成度**: 100%（代码框架）/ 85%（真实数据连接待完善）
 
-**本次更新内容 - 代码质量改进**:
-- 🔧 Bug Fix: FactorEngine 缓存设计缺陷修复（缓存键仅用因子名 → 改用 `(factor_name, data_hash)` 组合键，区分不同输入数据）
+**本次更新内容 - 7 大 Agent 全部实现**:
+- ✅ **Agent 1 (数据收集)** `agent/data_collector/` - 数据源扫描、适配器管理、增量更新、自修复
+- ✅ **Agent 2 (因子挖掘)** `agent/factor_mining/` - 50+候选因子池、并行计算、IC评估、自动报告
+- ✅ **Agent 3 (基本面分析)** `agent/fundamental/` - 新闻情感评分、库存周期追踪、利多/利空判断
+- ✅ **Agent 4 (量化信号)** `agent/quant/` - 多模型集成(线性+Ridge+LightGBM)、信号生成、衰退监控
+- ✅ **Agent 5 (回测验证)** `agent/backtest_agent/` - 信号回测、收益归因、Walk-Forward验证
+- ✅ **Agent 6 (价格行为)** `agent/price_behavior/` - 5分钟K线分析、形态识别、突破概率、入场推荐
+- ✅ **Agent 7 (决策中枢)** `agent/decision/` - 动态权重、情景分析、价格区间预测、策略推荐
+- ✅ **共享基础设施** `agent/shared/` - Loop控制器、记忆银行、进度追踪器
+
+**下一步计划**:
+- [ ] Agent 1 接入真实 akshare/tushare 数据（需安装对应库并配置token）
+- [ ] Agent 2 因子库扩展：增加更多另类因子
+- [ ] Agent 3 新闻爬虫接入（财联社、东方财富）
+- [ ] Agent 4 LSTM 模型训练
+- [ ] Agent 6 形态库回溯统计（历史突破成功率）
+- [ ] 端到端集成测试：用真实期货数据跑完整流程
+- [ ] 定期回看机制实现
+
+### v0.5.0-alpha (2026-03-30) - Agent 骨架实现
+**完成度**: 30%
+
+**本次更新内容 - Agent 框架初稿**:
+- Agent 基类（BaseAgent）设计
+- Orchestrator 编排器设计
+- 现有 Miner Agent（技术/基本面/宏观/融合）
+- 现有 Validator Agent（交叉验证/评分）
+
 - 🔧 Bug Fix: 异常链式处理（为 `backtest/engine.py` 添加 `raise ... from e` 保留原始 traceback）
 - ✅ Pydantic v2 迁移: `core/config.py` 从 `@validator` 升级到 `@field_validator`，消除 deprecation warning
 - ✅ 测试框架完善:

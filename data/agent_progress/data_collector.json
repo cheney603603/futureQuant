@@ -1,0 +1,38 @@
+{
+  "agent_name": "data_collector",
+  "status": "failed",
+  "total_steps": 7,
+  "current_step": 3,
+  "start_time": 1775062020.180143,
+  "end_time": 1775062020.511132,
+  "elapsed": 0.33098888397216797,
+  "steps": [
+    {
+      "step": 1,
+      "name": "检查数据源健康",
+      "message": "健康数据源: ['akshare']",
+      "elapsed": 0.3234221935272217,
+      "status": "done",
+      "timestamp": "2026-04-02T00:47:00.180143"
+    },
+    {
+      "step": 2,
+      "name": "确定更新范围",
+      "message": "待更新标的: 3 个",
+      "elapsed": 0.005558967590332031,
+      "status": "done",
+      "timestamp": "2026-04-02T00:47:00.504576"
+    },
+    {
+      "step": 3,
+      "name": "拉取数据",
+      "message": "",
+      "elapsed": 0.0,
+      "status": "running",
+      "timestamp": "2026-04-02T00:47:00.510149"
+    }
+  ],
+  "summary": {},
+  "output_summary": {},
+  "progress_pct": 42.857142857142854
+}

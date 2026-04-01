@@ -49,4 +49,22 @@ __all__ = [
     'FundamentalMiningAgent',
     'MacroMiningAgent',
     'FusionAgent',
+    # 分析 Agent
+    'FundamentalAnalysisAgent',
+    'SentimentResult',
+    'QuantSignalAgent',
+    'TradingSignal',
+    'BacktestAgent',
+    'BacktestResult',
+    'PriceBehaviorAgent',
+    'MarketState',
+    'DecisionAgent',
+    'DecisionReport',
 ]
+
+# 分析 Agent 懒加载导入（避免循环依赖）
+from .fundamental import FundamentalAnalysisAgent, SentimentResult
+from .quant import QuantSignalAgent, TradingSignal
+from .backtest_agent import BacktestAgent, BacktestResult
+from .price_behavior import PriceBehaviorAgent, MarketState
+from .decision import DecisionAgent, DecisionReport
