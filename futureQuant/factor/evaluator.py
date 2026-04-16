@@ -296,46 +296,84 @@ class FactorEvaluator:
         
         quantile_returns = []
         
-        for date in common_index:
-            factor_values = factor_aligned.loc[date]
-            ret_value = returns_aligned.loc[date]
-            
-            # 去除缺失值
-            valid_mask = factor_values.notna()
-            if isinstance(ret_value, pd.Series):
-                valid_mask &= ret_value.notna()
-            
-            if valid_mask.sum() < n_quantiles:
-                continue
-            
-            f_vals = factor_values[valid_mask]
-            r_vals = ret_value[valid_mask] if isinstance(ret_value, pd.Series) else ret_value
-            
+        # ============================================================
+        # 检测数据模式并选择分层策略
+        # ============================================================
+        # 模式A：单品种时序数据（每日期1行，DataFrame只有1列）
+        #         → 用池化分层：把所有日期的因子值合并，在整个时间序列上分层
+        # 模式B：多品种横截面数据（每日期多行）
+        #         → 用逐日期分层：每天按品种分层
+        # ============================================================
+        single_value_per_date = (
+            factor_aligned.shape[1] == 1
+            and (factor_aligned.notna().sum(axis=1) <= 1).all()
+        )
+
+        if single_value_per_date:
+            # 模式A：池化分层（将所有日期的因子值和收益作为整体进行分层）
+            logger.info("quantile_backtest: auto mode (pooled stratification for time-series data)")
             try:
-                # 按因子值分层
-                labels = range(1, n_quantiles + 1)
-                quantiles = pd.qcut(f_vals, q=n_quantiles, labels=labels, duplicates='drop')
-                
-                # 计算每层平均收益
-                layer_returns = {}
-                for q in labels:
-                    mask = quantiles == q
-                    if mask.sum() > 0:
-                        if isinstance(r_vals, pd.Series):
-                            layer_returns[f'Q{q}'] = r_vals[mask].mean()
-                        else:
-                            layer_returns[f'Q{q}'] = r_vals
-                
-                # 多空组合收益（最高层 - 最低层，假设因子与收益正相关）
-                if long_short and 'Q1' in layer_returns and f'Q{n_quantiles}' in layer_returns:
-                    layer_returns['long_short'] = layer_returns[f'Q{n_quantiles}'] - layer_returns['Q1']
-                
-                quantile_returns.append(pd.Series(layer_returns, name=date))
-                
+                f_all = factor_aligned.iloc[:, 0].dropna()
+                r_all = returns_aligned.loc[f_all.index].dropna()
+                common = f_all.index.intersection(r_all.index)
+                f_pool = f_all.loc[common]
+                r_pool = r_all.loc[common]
+
+                if len(f_pool) >= n_quantiles:
+                    labels = range(1, n_quantiles + 1)
+                    quantile_labels = pd.qcut(f_pool, q=n_quantiles, labels=labels, duplicates='drop')
+
+                    layer_returns = {}
+                    for q in labels:
+                        mask = quantile_labels == q
+                        if mask.sum() > 0:
+                            layer_returns[f'Q{q}'] = r_pool.loc[f_pool.index[mask]].mean()
+
+                    if long_short and 'Q1' in layer_returns and f'Q{n_quantiles}' in layer_returns:
+                        layer_returns['long_short'] = layer_returns[f'Q{n_quantiles}'] - layer_returns['Q1']
+
+                    quantile_returns.append(pd.Series(layer_returns, name='pooled'))
             except Exception as e:
-                logger.warning(f"Failed to calculate quantile returns for {date}: {e}")
-                continue
-        
+                logger.warning(f"Pooled stratification failed: {e}")
+
+        else:
+            # 模式B：逐日期分层（多品种横截面）
+            for date in common_index:
+                factor_values = factor_aligned.loc[date]
+                ret_value = returns_aligned.loc[date]
+                
+                valid_mask = factor_values.notna()
+                if isinstance(ret_value, pd.Series):
+                    valid_mask &= ret_value.notna()
+                
+                if valid_mask.sum() < n_quantiles:
+                    continue
+                
+                f_vals = factor_values[valid_mask]
+                r_vals = ret_value[valid_mask] if isinstance(ret_value, pd.Series) else ret_value
+                
+                try:
+                    labels = range(1, n_quantiles + 1)
+                    quantiles = pd.qcut(f_vals, q=n_quantiles, labels=labels, duplicates='drop')
+                    
+                    layer_returns = {}
+                    for q in labels:
+                        mask = quantiles == q
+                        if mask.sum() > 0:
+                            if isinstance(r_vals, pd.Series):
+                                layer_returns[f'Q{q}'] = r_vals[mask].mean()
+                            else:
+                                layer_returns[f'Q{q}'] = r_vals
+                    
+                    if long_short and 'Q1' in layer_returns and f'Q{n_quantiles}' in layer_returns:
+                        layer_returns['long_short'] = layer_returns[f'Q{n_quantiles}'] - layer_returns['Q1']
+                    
+                    quantile_returns.append(pd.Series(layer_returns, name=date))
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to calculate quantile returns for {date}: {e}")
+                    continue
+
         if not quantile_returns:
             raise FactorError("No valid quantile returns calculated")
         
@@ -626,7 +664,17 @@ class FactorEvaluator:
         logger.info("Calculating IC...")
         ic_series = self.calculate_ic(factor_df, returns, method)
         results['ic_series'] = ic_series
-        results['ic_stats'] = self.calculate_icir(ic_series)
+        
+        # ICIR计算（单样本时返回NaN而非抛异常）
+        try:
+            results['ic_stats'] = self.calculate_icir(ic_series)
+        except FactorError:
+            logger.warning("Not enough samples for ICIR calculation")
+            results['ic_stats'] = {
+                'icir': float('nan'), 'annual_icir': float('nan'),
+                'ic_mean': float('nan'), 'ic_std': float('nan'),
+                'ic_win_rate': float('nan'), 'n_samples': 0
+            }
         
         # 2. IC衰减
         logger.info("Calculating IC decay...")

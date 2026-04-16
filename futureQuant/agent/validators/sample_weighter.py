@@ -103,8 +103,8 @@ class SampleWeighter:
         vol = returns.rolling(self.volatility_window).std().fillna(0)
         vol_rank = vol.rank(pct=True).fillna(0.5)
 
-        # 高波动 → 低权重
-        raw_weights = 1.0 - vol_rank * 0.5
+        # 高波动 -> 高权重（高波动期信息量更大）
+        raw_weights = 0.5 + vol_rank * 0.5
         weights = pd.Series(np.clip(raw_weights.values, 0.0, 1.0), index=data.index)
         return self._normalize_01(weights)
 

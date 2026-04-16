@@ -12,7 +12,7 @@
 
 ## 📊 版本历史
 
-### v0.6.0-alpha (2026-04-02) - **Agent 全量实现**
+### v0.6.0-alpha (2026-04-02) - **Agent 全量实现 + 项目整理**
 **状态**: ✅ 完成
 **完成度**: 100%（代码框架）/ 85%（真实数据连接待完善）
 
@@ -26,7 +26,22 @@
 - ✅ **Agent 7 (决策中枢)** `agent/decision/` - 动态权重、情景分析、价格区间预测、策略推荐
 - ✅ **共享基础设施** `agent/shared/` - Loop控制器、记忆银行、进度追踪器
 
+**2026-04-02 项目整理工作**:
+- 🧹 **代码清理**: 删除 3 个根目录临时文件 (_pm_out.txt, pytest_cm.txt, f=设计.txt)
+- 🧹 **结构优化**: 删除空的 `futureQuant/agent/agent/` 目录
+- 📚 **文档整理**: 清理 docs/multi-agent-factor-mining/ 冗余文档
+  - 删除: 19 个 PHASE 和 COMPLETION 阶段性文档
+  - 保留: 6 个核心文档 (README/ARCHITECTURE/IMPLEMENTATION/PRD/QUICK_START/QUANT_REVIEW)
+- ✅ **新增文档**: 
+  - PROJECT_STRUCTURE.md - 完整项目结构说明（1000+ 行）
+  - CLEANUP_REPORT.md - 整理工作详细报告
+- ✅ **功能验证**:
+  - 7/7 Agent 功能验证通过 ✅
+  - 222/241 单元测试通过 (92.1%) ✅
+  - 真实数据端到端测试通过 ✅
+
 **下一步计划**:
+- [ ] 修复 17 个失败的单元测试（边界条件、精度问题）
 - [ ] Agent 1 接入真实 akshare/tushare 数据（需安装对应库并配置token）
 - [ ] Agent 2 因子库扩展：增加更多另类因子
 - [ ] Agent 3 新闻爬虫接入（财联社、东方财富）

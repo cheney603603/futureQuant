@@ -46,6 +46,7 @@ class MemoryMonitor:
     def __init__(self):
         """åå§ååå­çæ§å¨"""
         self.process = psutil.Process()
+        self.peak_memory = 0.0  # 先声明，避免 _get_memory_stats() 内访问旧值
         self.initial_memory = self._get_memory_stats()
         self.peak_memory = self.initial_memory.process_memory_mb
         logger.info(f"MemoryMonitor initialized: {self.initial_memory}")

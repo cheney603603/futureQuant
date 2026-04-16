@@ -3,63 +3,63 @@
   "status": "success",
   "total_steps": 7,
   "current_step": 6,
-  "start_time": 1775063623.8176763,
-  "end_time": 1775063627.3302517,
-  "elapsed": 3.512575387954712,
+  "start_time": 1775236983.4701693,
+  "end_time": 1775236984.8335533,
+  "elapsed": 1.3633840084075928,
   "steps": [
     {
       "step": 1,
       "name": "检查数据源健康",
       "message": "健康数据源: ['akshare']",
-      "elapsed": 0.1220548152923584,
+      "elapsed": 0.1250312328338623,
       "status": "done",
-      "timestamp": "2026-04-02T01:13:43.818676"
+      "timestamp": "2026-04-04T01:23:03.470169"
     },
     {
       "step": 2,
       "name": "确定更新范围",
-      "message": "待更新标的: 3 个",
-      "elapsed": 0.008993387222290039,
+      "message": "待更新标的: 1 个",
+      "elapsed": 0.05513596534729004,
       "status": "done",
-      "timestamp": "2026-04-02T01:13:43.940706"
+      "timestamp": "2026-04-04T01:23:03.596203"
     },
     {
       "step": 3,
       "name": "拉取数据",
-      "message": "完成 3/3 个",
-      "elapsed": 3.374512195587158,
+      "message": "完成 1/1 个",
+      "elapsed": 1.1763651371002197,
       "status": "done",
-      "timestamp": "2026-04-02T01:13:43.948724"
+      "timestamp": "2026-04-04T01:23:03.650336"
     },
     {
       "step": 4,
       "name": "验证数据",
-      "message": "验证记录: 640",
-      "elapsed": 0.0010044574737548828,
+      "message": "验证记录: 242",
+      "elapsed": 0.0010023117065429688,
       "status": "done",
-      "timestamp": "2026-04-02T01:13:47.323236"
+      "timestamp": "2026-04-04T01:23:04.826701"
     },
     {
       "step": 5,
       "name": "存储元数据",
       "message": "元数据已更新",
-      "elapsed": 0.0019998550415039062,
+      "elapsed": 0.0015010833740234375,
       "status": "done",
-      "timestamp": "2026-04-02T01:13:47.324241"
+      "timestamp": "2026-04-04T01:23:04.827704"
     },
     {
       "step": 6,
       "name": "记录记忆",
       "message": "记忆已保存",
-      "elapsed": 0.003000497817993164,
+      "elapsed": 0.004348278045654297,
       "status": "done",
-      "timestamp": "2026-04-02T01:13:47.326241"
+      "timestamp": "2026-04-04T01:23:04.830049"
     }
   ],
   "summary": {},
   "output_summary": {
-    "records_fetched": 640,
-    "symbols_updated": 3,
+    "records_fetched": 242,
+    "symbols_updated": 1,
     "symbols_skipped": 0,
     "errors": []
   },

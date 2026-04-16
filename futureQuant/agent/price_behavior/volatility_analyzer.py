@@ -47,13 +47,28 @@ class VolatilityAnalyzer:
         """
         # 提取数据
         if isinstance(df, pd.DataFrame):
+            # Check if columns exist (df may have been set_index)
             if "close" in df.columns:
                 close = df["close"]
+            elif df.shape[1] >= 4:
+                # Assume OHLC order: open, high, low, close
+                close = df.iloc[:, 3]
             else:
                 close = df.iloc[:, 0]
 
-            high = df["high"] if "high" in df.columns else close
-            low = df["low"] if "low" in df.columns else close
+            if "high" in df.columns:
+                high = df["high"]
+            elif df.shape[1] >= 3:
+                high = df.iloc[:, 1]
+            else:
+                high = close
+
+            if "low" in df.columns:
+                low = df["low"]
+            elif df.shape[1] >= 3:
+                low = df.iloc[:, 2]
+            else:
+                low = close
         else:
             close = df
             high = df

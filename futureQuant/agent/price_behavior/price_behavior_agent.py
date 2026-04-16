@@ -205,8 +205,14 @@ class PriceBehaviorAgent(BaseAgent):
         price_vs_ma = (close.iloc[-1] - ma20) / ma20 if ma20 != 0 else 0
 
         # 创新高/新低计数
-        highs = recent['high'] if 'high' in recent.columns else recent['close'] if 'close' in recent.columns else recent
-        lows = recent['low'] if 'low' in recent.columns else recent['close'] if 'close' in recent.columns else recent
+        # recent is a Series (close.tail()), so we need to get high/low from df
+        if isinstance(recent, pd.Series):
+            # Use close values as proxy
+            highs = recent.values
+            lows = recent.values
+        else:
+            highs = recent['high'] if 'high' in recent.columns else recent['close'] if 'close' in recent.columns else recent
+            lows = recent['low'] if 'low' in recent.columns else recent['close'] if 'close' in recent.columns else recent
 
         hh_count = sum(1 for i in range(1, len(recent)) if recent.iloc[i] > recent.iloc[:i].max())
         ll_count = sum(1 for i in range(1, len(recent)) if recent.iloc[i] < recent.iloc[:i].min())

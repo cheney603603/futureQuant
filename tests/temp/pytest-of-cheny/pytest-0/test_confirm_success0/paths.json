@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "updated_at": "2026-04-11T13:59:48.175942",
+  "paths": [
+    {
+      "path_id": "akshare_daily_RB*_e8f067a4",
+      "source": "akshare",
+      "data_type": "daily",
+      "symbol_pattern": "RB*",
+      "params": {},
+      "status": "active",
+      "success_count": 1,
+      "failure_count": 0,
+      "avg_response_ms": 850.0,
+      "last_success": "2026-04-11T13:59:48.175942",
+      "last_failure": "",
+      "last_try": "2026-04-11T13:59:48.175942",
+      "quality_score": 0.5,
+      "tags": [],
+      "created_at": "2026-04-11T13:59:48.175942",
+      "last_fetch_records": 242,
+      "freshness_days": 0,
+      "success_rate": 1.0,
+      "is_active": true,
+      "is_reliable": false
+    }
+  ]
+}

@@ -447,6 +447,38 @@ def create_test_factor(name: str, ic: float = 0.05) -> pd.Series:
 
 
 # 导出 fixtures 供其他 conftest 使用
+
+@pytest.fixture
+def sample_continuous_contract() -> pd.DataFrame:
+    np.random.seed(42)
+    records = []
+    # RB2401: Jan-Apr 2024
+    d1 = pd.date_range('2024-01-02', '2024-04-25', freq='B')
+    p1 = 4000.0 * np.cumprod(1 + np.random.randn(len(d1)) * 0.012)
+    for i, date in enumerate(d1):
+        c = p1[i]
+        records.append({'symbol': 'RB2401', 'date': date.strftime('%Y-%m-%d'),
+            'open': c*(1+np.random.randn()*0.003), 'high': c*(1+abs(np.random.randn())*0.008),
+            'low': c*(1-abs(np.random.randn())*0.008), 'close': c,
+            'volume': int(np.random.randint(100000, 400000)),
+            'open_interest': int(np.random.randint(300000, 700000))})
+    # RB2405: Apr-Aug 2024 (overlapping period)
+    d2 = pd.date_range('2024-04-20', '2024-08-30', freq='B')
+    p2 = 3950.0 * np.cumprod(1 + np.random.randn(len(d2)) * 0.012)
+    for i, date in enumerate(d2):
+        c = p2[i]
+        records.append({'symbol': 'RB2405', 'date': date.strftime('%Y-%m-%d'),
+            'open': c*(1+np.random.randn()*0.003), 'high': c*(1+abs(np.random.randn())*0.008),
+            'low': c*(1-abs(np.random.randn())*0.008), 'close': c,
+            'volume': int(np.random.randint(100000, 400000)),
+            'open_interest': int(np.random.randint(300000, 700000))})
+    df = pd.DataFrame(records)
+    df['high'] = df[['open', 'close', 'high']].max(axis=1)
+    df['low'] = df[['open', 'close', 'low']].min(axis=1)
+    return df
+
+
+
 __all__ = [
     'sample_dates',
     'sample_price_data',

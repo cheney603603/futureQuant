@@ -9,6 +9,22 @@ data:
   cache_dir: "./data_cache"
   db_path: "./data_cache/futures.db"
   update_time: "20:00"  # 每日更新时间
+  mysql:
+    enabled: true
+    host: "127.0.0.1"
+    port: 3306
+    user: "novel_user"
+    password: "novel_password"
+    database: "futurequant"
+    table: "daily_price"
+    date_column: "date"
+    symbol_column: "symbol"
+    open_column: "open"
+    high_column: "high"
+    low_column: "low"
+    close_column: "close"
+    volume_column: "volume"
+    open_interest_column: "open_interest"
   
   # akshare配置
   akshare_timeout: 30

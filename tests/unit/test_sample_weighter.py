@@ -104,7 +104,7 @@ class TestVolatilityWeighting:
         
         weights = weighter.calculate_volatility_weights(data)
         
-        # 后期权重应该更高
+        # 波动率加权：高波动期权重更高（信息量更大）
         assert weights.iloc[-10:].mean() > weights.iloc[:10].mean()
 
 
@@ -161,7 +161,7 @@ class TestLiquidityWeighting:
         
         weights = weighter.calculate_liquidity_weights(data)
         
-        # 后期权重应该更高
+        # 流动性加权：高成交量期权重更高
         assert weights.iloc[-10:].mean() > weights.iloc[:10].mean()
 
 

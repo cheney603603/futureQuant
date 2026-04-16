@@ -264,6 +264,9 @@ class QuantSignalAgent(BaseAgent):
 
         # 标准化（处理极端值）
         X = X_df.values.astype(np.float64)
+        # 再检查 NaN（防止遗漏）
+        if np.isnan(X).any():
+            X = np.nan_to_num(X, nan=0.0)
         # 线性变换到 0~1（稳健标准化）
         col_min = np.nanmin(X, axis=0)
         col_max = np.nanmax(X, axis=0)

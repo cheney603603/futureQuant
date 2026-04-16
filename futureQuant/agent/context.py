@@ -63,10 +63,13 @@ class MiningContext:
 
         # 确保 returns 有正确的索引
         if not isinstance(self.returns.index, pd.DatetimeIndex):
-            try:
-                self.returns.index = pd.to_datetime(self.returns.index)
-            except (ValueError, TypeError):
-                pass
+            if len(self.returns) == len(self.data):
+                self.returns.index = self.data.index
+            else:
+                try:
+                    self.returns.index = pd.to_datetime(self.returns.index)
+                except (ValueError, TypeError):
+                    pass
 
     def add_discovered_factors(self, factors: List[Any]):
         """

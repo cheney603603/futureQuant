@@ -24,6 +24,7 @@ class DataConfig(BaseModel):
     crawler_delay: float = 5.0  # 请求间隔（秒）
     crawler_timeout: int = 30
     crawler_retry: int = 3
+    mysql: Dict[str, Any] = Field(default_factory=dict)
 
 
 class BacktestConfig(BaseModel):

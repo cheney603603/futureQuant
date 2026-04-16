@@ -17,6 +17,7 @@ from ..core.exceptions import DataError
 from .fetcher.akshare_fetcher import AKShareFetcher
 from .fetcher.crawler import ExchangeCrawler, BasisCrawler, InventoryCrawler
 from .storage.db_manager import DBManager
+from .storage.mysql_price_loader import MySQLPriceLoader, MySQLPriceLoaderConfig
 from .processor.cleaner import DataCleaner
 from .processor.contract_manager import ContractManager
 from .processor.calendar import FuturesCalendar
@@ -52,11 +53,33 @@ class DataManager:
         self.cleaner = DataCleaner()
         self.contract_manager = ContractManager()
         self.calendar = FuturesCalendar()
-        
+        self.mysql_loader: Optional[MySQLPriceLoader] = None
+        self._init_mysql_loader()
+
         # 初始化数据获取器
         self.fetchers: Dict[str, DataFetcher] = {}
         self._init_fetchers()
-    
+
+    def _init_mysql_loader(self):
+        """Initialize optional MySQL daily price loader."""
+        try:
+            config = get_config()
+            mysql_config = MySQLPriceLoaderConfig.from_mapping(config.data.mysql)
+            if mysql_config is None:
+                mysql_config = MySQLPriceLoaderConfig.from_env()
+            if mysql_config is None:
+                return
+
+            self.mysql_loader = MySQLPriceLoader(mysql_config)
+            logger.info(
+                "MySQL price loader initialized: "
+                f"{mysql_config.host}:{mysql_config.port}/"
+                f"{mysql_config.database}.{mysql_config.table}"
+            )
+        except Exception as e:
+            logger.warning(f"MySQL loader initialization failed: {e}")
+            self.mysql_loader = None
+
     def _init_fetchers(self):
         """初始化数据获取器"""
         # akshare获取器
@@ -115,7 +138,18 @@ class DataManager:
             if not df.empty:
                 logger.info(f"Loaded {len(df)} records from cache for {symbol}")
                 return df
-        
+
+        if self.mysql_loader is not None:
+            df = self.mysql_loader.load_daily_data(symbol, start_date, end_date)
+            if not df.empty:
+                logger.info(f"Loaded {len(df)} records from MySQL for {symbol}")
+                if auto_clean:
+                    df = self.cleaner.clean_ohlc(df)
+                if use_cache:
+                    self.db.save_price_data(df, symbol)
+                    self.db.log_update('daily_mysql', symbol, start_date, end_date, len(df))
+                return df
+
         # 从数据源获取
         fetcher = self.fetchers.get(source)
         if not fetcher:
@@ -137,6 +171,31 @@ class DataManager:
             self.db.log_update('daily', symbol, start_date, end_date, len(df))
         
         return df
+
+    def get_daily(
+        self,
+        symbol: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        source: str = 'akshare',
+        use_cache: bool = True,
+        auto_clean: bool = True
+    ) -> pd.DataFrame:
+        """
+        Backward-compatible alias for get_daily_data().
+
+        Some older agent/orchestrator code paths still call ``get_daily``.
+        Keep this thin wrapper so existing examples do not break when they
+        rely on the previous method name.
+        """
+        return self.get_daily_data(
+            symbol=symbol,
+            start_date=start_date,
+            end_date=end_date,
+            source=source,
+            use_cache=use_cache,
+            auto_clean=auto_clean,
+        )
     
     def get_continuous_contract(
         self,

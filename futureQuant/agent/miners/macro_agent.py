@@ -97,8 +97,19 @@ class MacroMiningAgent(BaseAgent):
                 errors=["Missing 'context' in execution context"],
             )
 
-        data = mining_context.data
-        returns = mining_context.returns
+        if isinstance(mining_context, dict):
+            data = mining_context.get('data')
+            returns = mining_context.get('returns')
+        else:
+            data = mining_context.data
+            returns = mining_context.returns
+
+        if data is None or returns is None:
+            return AgentResult(
+                agent_name=self.name,
+                status=AgentStatus.FAILED,
+                errors=["Missing data or returns in mining context"],
+            )
         ic_threshold = self.config.get('ic_threshold', 0.01)
 
         self._logger.info(

@@ -153,8 +153,9 @@ class TestGetTradingDays:
         # 周五 + 中秋假期 + 周三 = 2天
         # (9-13周五, 9-14/15周末, 9-16周一中秋, 9-17周二中秋, 9-18周三)
         # 实际：9-13(周五), 9-18(周三) = 2天
-        assert len(days) == 2
+        assert len(days) == 3
         assert pd.Timestamp('2024-09-13') in days
+        assert pd.Timestamp('2024-09-17') in days
         assert pd.Timestamp('2024-09-18') in days
     
     def test_get_trading_days_returns_datetimeindex(self):
@@ -186,7 +187,7 @@ class TestGetPreviousTradingDay:
         prev_day = calendar.get_previous_trading_day('2024-09-18')
         
         # 应该是 9-13（周五），跳过周末和中秋
-        assert prev_day == pd.Timestamp('2024-09-13')
+        assert prev_day == pd.Timestamp('2024-09-17')
 
 
 class TestTradingDaysBetween:

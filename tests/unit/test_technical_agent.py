@@ -118,6 +118,14 @@ class TestTechnicalAgentFactorGeneration:
         volume_factors = [n for n in factor_names if 'volume' in n.lower() or 'obv' in n.lower()]
         assert len(volume_factors) > 0
 
+    def test_generate_candidates_have_unique_names(self):
+        """测试参数化候选因子名称唯一"""
+        agent = TechnicalMiningAgent()
+        candidates = agent._generate_candidates()
+
+        factor_names = [f.name for f in candidates]
+        assert len(factor_names) == len(set(factor_names))
+
 
 # ============================================================================
 # TechnicalMiningAgent 执行测试

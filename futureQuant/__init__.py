@@ -16,7 +16,7 @@ futureQuant - 期货量化研究框架
     >>> df = dm.get_daily_data('RB2501', start_date='2024-01-01')
 """
 
-__version__ = "0.1.0"
+__version__ = "0.6.0"
 __author__ = "futureQuant Team"
 
 # 主要类直接暴露

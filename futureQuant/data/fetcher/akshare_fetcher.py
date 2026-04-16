@@ -1,12 +1,17 @@
 """
-akshare 数据获取器封装
+akshare 数据获取器
 
-提供期货日线数据获取功能
+修复说明 (2026-04-11):
+  - 新浪接口 futures_zh_daily_sina(symbol=variety) 已失效（返回空数据）
+  - 改用 akshare.get_futures_daily(market=exchange) 获取全量数据再按品种过滤
+  - 支持: SHFE, CZCE, CFFEX, INE
+  - DCE 交易所接口已失效
 """
 
 import time
-from datetime import datetime, timedelta
-from typing import List, Optional, Dict
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+
 import pandas as pd
 
 from ...core.base import DataFetcher
@@ -15,199 +20,293 @@ from ...core.logger import get_logger
 
 logger = get_logger('data.fetcher.akshare')
 
+# 品种代码 → 交易所 映射
+VARIETY_EXCHANGE: Dict[str, str] = {
+    # SHFE
+    'AG': 'SHFE', 'AL': 'SHFE', 'AO': 'SHFE', 'AU': 'SHFE',
+    'BC': 'SHFE', 'BR': 'SHFE', 'BU': 'SHFE', 'CU': 'SHFE',
+    'EC': 'SHFE', 'FU': 'SHFE', 'HC': 'SHFE', 'LU': 'SHFE',
+    'NI': 'SHFE', 'NR': 'SHFE', 'PB': 'SHFE', 'RB': 'SHFE',
+    'RU': 'SHFE', 'SC': 'SHFE', 'SN': 'SHFE', 'SP': 'SHFE',
+    'SS': 'SHFE', 'WR': 'SHFE', 'ZN': 'SHFE',
+    # CZCE
+    'AP': 'CZCE', 'CF': 'CZCE', 'CJ': 'CZCE', 'CY': 'CZCE',
+    'FG': 'CZCE', 'JR': 'CZCE', 'LR': 'CZCE', 'MA': 'CZCE',
+    'OI': 'CZCE', 'PF': 'CZCE', 'PK': 'CZCE', 'PM': 'CZCE',
+    'PX': 'CZCE', 'RI': 'CZCE', 'RM': 'CZCE', 'RS': 'CZCE',
+    'SA': 'CZCE', 'SF': 'CZCE', 'SH': 'CZCE', 'SM': 'CZCE',
+    'SR': 'CZCE', 'TA': 'CZCE', 'UR': 'CZCE', 'WH': 'CZCE',
+    'ZC': 'CZCE',
+    # CFFEX
+    'IC': 'CFFEX', 'IF': 'CFFEX', 'IH': 'CFFEX', 'IM': 'CFFEX',
+    'T': 'CFFEX', 'TF': 'CFFEX', 'TL': 'CFFEX', 'TS': 'CFFEX',
+    # INE
+    'NR': 'INE',  # NR 同时在 SHFE 和 INE，取 INE
+    'SC_TAS': 'INE',
+}
+
+# 交易所 → akshare market 参数
+EXCHANGE_AK: Dict[str, str] = {
+    'SHFE': 'SHFE', 'CZCE': 'CZCE',
+    'CFFEX': 'CFFEX', 'INE': 'INE',
+}
+
+# CZCE 列名特殊映射（无 open_interest/turnover 列）
+_CZCE_COLS_STD: Dict[str, str] = {
+    'date': 'date', 'open': 'open', 'high': 'high',
+    'low': 'low', 'close': 'close', 'volume': 'volume',
+}
+# SHFE/CFFEX/INE 标准列
+_STD_COLS: Dict[str, str] = {
+    'date': 'date', 'open': 'open', 'high': 'high',
+    'low': 'low', 'close': 'close', 'volume': 'volume',
+    'open_interest': 'open_interest',
+}
+
 
 class AKShareFetcher(DataFetcher):
-    """akshare数据获取器"""
-    
+    """
+    akshare 数据获取器（修复版）
+
+    使用 akshare.get_futures_daily(market=exchange) 按交易所拉取，
+    再按品种过滤，替代已失效的新浪接口。
+    """
+
     def __init__(self, timeout: int = 30, retry: int = 3, delay: float = 1.0):
-        """
-        初始化
-        
-        Args:
-            timeout: 请求超时时间
-            retry: 重试次数
-            delay: 请求间隔（秒）
-        """
         self.timeout = timeout
         self.retry = retry
         self.delay = delay
         self._ak = None
+        self._cache: Dict[str, pd.DataFrame] = {}  # market+date → DataFrame
         self._init_akshare()
-    
+
     def _init_akshare(self):
-        """初始化akshare"""
         try:
             import akshare as ak
             self._ak = ak
             logger.info("akshare initialized successfully")
         except ImportError:
-            logger.error("akshare not installed, please run: pip install akshare")
-            raise ImportError("akshare is required for AKShareFetcher")
-    
+            raise ImportError("akshare not installed. Run: pip install akshare")
+
     @property
     def name(self) -> str:
         return "akshare"
-    
+
     def fetch_daily(
-        self, 
-        symbol: str, 
-        start_date: str, 
+        self,
+        symbol: str,
+        start_date: str,
         end_date: str,
-        **kwargs
+        **kwargs,
     ) -> pd.DataFrame:
         """
         获取期货日线数据
-        
+
         Args:
-            symbol: 合约代码，如 'RB2501'
+            symbol: 合约代码，如 'RB'（品种前缀）/'RB2501'（具体合约）
             start_date: 开始日期 (YYYY-MM-DD)
             end_date: 结束日期 (YYYY-MM-DD)
-            
-        Returns:
-            DataFrame with columns: [date, open, high, low, close, volume, open_interest, amount]
         """
         for attempt in range(self.retry):
             try:
-                # 转换日期格式
-                start = pd.to_datetime(start_date).strftime('%Y%m%d')
-                end = pd.to_datetime(end_date).strftime('%Y%m%d')
-                
-                # 获取数据
-                df = self._ak.futures_zh_daily_sina(symbol=symbol)
-                
-                if df is None or df.empty:
-                    logger.warning(f"No data returned for {symbol}")
-                    return pd.DataFrame()
-                
-                # 标准化列名
-                df = self._standardize(df)
-                
-                # 日期过滤
-                df['date'] = pd.to_datetime(df['date'])
-                mask = (df['date'] >= start_date) & (df['date'] <= end_date)
-                df = df[mask].copy()
-                
-                logger.info(f"Fetched {len(df)} records for {symbol} from {start_date} to {end_date}")
-                
-                time.sleep(self.delay)  # 请求间隔
-                return df
-                
-            except Exception as e:
-                logger.warning(f"Attempt {attempt + 1}/{self.retry} failed for {symbol}: {e}")
+                return self._fetch_impl(symbol, start_date, end_date)
+            except FetchError:
                 if attempt < self.retry - 1:
-                    time.sleep(2 ** attempt)  # 指数退避
+                    time.sleep(2 ** attempt)
                 else:
-                    raise FetchError(f"Failed to fetch {symbol} after {self.retry} attempts: {e}")
-        
+                    raise
+
         return pd.DataFrame()
-    
+
+    def _fetch_impl(
+        self,
+        symbol: str,
+        start_date: str,
+        end_date: str,
+    ) -> pd.DataFrame:
+        """
+        内部获取实现：
+        1. 品种前缀 → 交易所
+        2. 按交易所拉取全量数据（带缓存）
+        3. 过滤指定品种/合约
+        """
+        # 标准化 symbol: 取前2字符作为品种前缀
+        variety = symbol[:2].upper()
+        contract_code = symbol.upper()
+
+        # 确认交易所
+        exchange = VARIETY_EXCHANGE.get(variety)
+        if not exchange:
+            raise FetchError(
+                f"Unknown variety '{variety}' for symbol '{symbol}'. "
+                f"Supported: {sorted(VARIETY_EXCHANGE.keys())}"
+            )
+
+        # 按交易日期拉取（缓存一天内多次调用）
+        ak_market = EXCHANGE_AK.get(exchange, exchange)
+        all_data = self._fetch_exchange(ak_market, start_date, end_date)
+
+        if all_data.empty:
+            raise FetchError(
+                f"No data returned from {exchange} for {variety} "
+                f"({start_date} ~ {end_date})"
+            )
+
+        # 过滤：品种列匹配 或 合约代码前缀匹配
+        if 'variety' in all_data.columns:
+            mask = all_data['variety'] == variety
+        else:
+            mask = all_data['symbol'].str.upper().str.startswith(variety)
+
+        # 如果输入是具体合约（如 RB2501），再过滤合约代码
+        if len(contract_code) >= 4 and contract_code not in VARIETY_EXCHANGE:
+            # 排除纯品种代码本身（因为 RB 既是品种又是合约前缀）
+            mask_contract = (
+                all_data['symbol'].str.upper().str.startswith(contract_code)
+            )
+            mask = mask & mask_contract
+
+        df = all_data[mask].copy()
+
+        # 标准化列
+        df = self._standardize(df, exchange)
+
+        # 日期过滤
+        if 'date' in df.columns:
+            df['date'] = pd.to_datetime(df['date'])
+            df = df[
+                (df['date'] >= start_date) & (df['date'] <= end_date)
+            ]
+
+        df = df.sort_values('date').reset_index(drop=True)
+
+        logger.info(
+            f"[AKShareFetcher] {symbol} @ {exchange}: "
+            f"{len(df)} records ({start_date} ~ {end_date})"
+        )
+        time.sleep(self.delay)
+        return df
+
+    def _fetch_exchange(
+        self,
+        market: str,
+        start_date: str,
+        end_date: str,
+    ) -> pd.DataFrame:
+        """按交易所拉取全量数据（带日期缓存）"""
+        # 转换日期格式
+        sd = pd.to_datetime(start_date).strftime('%Y%m%d')
+        ed = pd.to_datetime(end_date).strftime('%Y%m%d')
+
+        # 缓存键
+        cache_key = f"{market}:{sd}:{ed}"
+
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        # 调用 akshare.get_futures_daily
+        df = self._ak.get_futures_daily(
+            start_date=sd,
+            end_date=ed,
+            market=market,
+        )
+
+        if df is None or df.empty:
+            return pd.DataFrame()
+
+        # 清理返回数据
+        if 'index' in df.columns:
+            df = df.drop(columns=['index'])
+
+        self._cache[cache_key] = df
+        return df
+
     def fetch_symbols(self, variety: Optional[str] = None) -> List[str]:
         """
-        获取可交易的合约列表
-        
-        Args:
-            variety: 品种代码，如 'RB'，为None时返回所有
-            
-        Returns:
-            合约代码列表
+        获取可交易合约列表
         """
         try:
-            # 获取主力合约列表
-            df = self._ak.futures_zh_realtime(symbol="主力")
-            
-            if df is None or df.empty:
-                return []
-            
-            symbols = df['symbol'].tolist()
-            
+            # 获取近期交易日
+            end = datetime.now().strftime('%Y%m%d')
+            start = (datetime.now().replace(day=1)).strftime('%Y%m%d')
+
             if variety:
-                # 过滤指定品种
-                symbols = [s for s in symbols if s.startswith(variety.upper())]
-            
-            return symbols
-            
+                exchange = VARIETY_EXCHANGE.get(variety.upper())
+                if exchange:
+                    df = self._fetch_exchange(EXCHANGE_AK[exchange], start, end)
+                    if not df.empty and 'symbol' in df.columns:
+                        return sorted(df['symbol'].str.upper().unique().tolist())
+            else:
+                # 返回所有支持品种的合约
+                symbols = []
+                for ex in ['SHFE', 'CZCE', 'CFFEX']:
+                    df = self._fetch_exchange(EXCHANGE_AK[ex], start, end)
+                    if not df.empty and 'symbol' in df.columns:
+                        symbols.extend(df['symbol'].str.upper().unique().tolist())
+                return sorted(set(symbols))
         except Exception as e:
-            logger.error(f"Failed to fetch symbols: {e}")
-            return []
-    
+            logger.warning(f"fetch_symbols failed: {e}")
+        return []
+
     def fetch_main_contract(self, variety: str) -> str:
-        """
-        获取主力合约代码
-        
-        Args:
-            variety: 品种代码，如 'RB'
-            
-        Returns:
-            主力合约代码
-        """
-        try:
-            df = self._ak.futures_zh_realtime(symbol=variety)
-            if df is not None and not df.empty:
-                return df.iloc[0]['symbol']
+        """获取主力合约代码"""
+        symbols = self.fetch_symbols(variety=variety)
+        if not symbols:
             return ""
-        except Exception as e:
-            logger.error(f"Failed to fetch main contract for {variety}: {e}")
-            return ""
-    
-    def fetch_contract_list(self, variety: str) -> pd.DataFrame:
-        """
-        获取某品种的所有合约列表
-        
-        Args:
-            variety: 品种代码，如 'RB'
-            
-        Returns:
-            DataFrame with contract info
-        """
-        try:
-            df = self._ak.futures_zh_realtime(symbol=variety)
-            return df if df is not None else pd.DataFrame()
-        except Exception as e:
-            logger.error(f"Failed to fetch contract list for {variety}: {e}")
-            return pd.DataFrame()
-    
-    def _standardize(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        标准化数据格式
-        
-        Args:
-            df: 原始数据
-            
-        Returns:
-            标准化后的数据
-        """
-        # 列名映射
-        column_mapping = {
-            'date': 'date',
-            'open': 'open',
-            'high': 'high',
-            'low': 'low',
-            'close': 'close',
-            'volume': 'volume',
-            '持仓量': 'open_interest',
-            'open_interest': 'open_interest',
-        }
-        
-        # 重命名列
-        df = df.rename(columns=column_mapping)
-        
-        # 确保必要列存在
-        required_cols = ['date', 'open', 'high', 'low', 'close', 'volume']
-        for col in required_cols:
-            if col not in df.columns:
-                logger.warning(f"Missing required column: {col}")
-        
-        # 数值类型转换
+        # 取最近到期的合约
+        return sorted(symbols)[0]
+
+    def _standardize(self, df: pd.DataFrame, exchange: str) -> pd.DataFrame:
+        """标准化列名"""
+        if df.empty:
+            return df
+
+        # 列名清理（akshare 返回中文列名）
+        rename_map: Dict[str, str] = {}
+        for col in df.columns:
+            col_s = str(col).strip()
+            if col_s in ('\u65e5\u671f', 'date'):  # 日期
+                rename_map[col] = 'date'
+            elif col_s in ('\u5f00\u76d8', 'open'):  # 开盘
+                rename_map[col] = 'open'
+            elif col_s in ('\u6700\u9ad8', 'high'):  # 最高
+                rename_map[col] = 'high'
+            elif col_s in ('\u6700\u4f4e', 'low'):  # 最低
+                rename_map[col] = 'low'
+            elif col_s in ('\u6536\u76d8', 'close'):  # 收盘
+                rename_map[col] = 'close'
+            elif col_s in ('\u6210\u4ea4\u91cf', 'volume'):  # 成交量
+                rename_map[col] = 'volume'
+            elif col_s in ('\u6301\u4ed3\u91cf', 'open_interest', 'oi'):  # 持仓量
+                rename_map[col] = 'open_interest'
+            elif col_s in ('symbol', 'symbol'):
+                rename_map[col] = 'symbol'
+            elif col_s in ('variety', '\u54c1\u79cd'):
+                rename_map[col] = 'variety'
+
+        df = df.rename(columns=rename_map)
+
+        # 数值列
         numeric_cols = ['open', 'high', 'low', 'close', 'volume', 'open_interest']
         for col in numeric_cols:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
-        
-        # 日期格式
+
+        # 日期列统一转换：int(20240102) 或 str('20240102') → datetime
         if 'date' in df.columns:
-            df['date'] = pd.to_datetime(df['date'])
-        
-        # 排序
-        df = df.sort_values('date').reset_index(drop=True)
-        
+            if df['date'].dtype == 'int64' or df['date'].dtype.name == 'int64':
+                # CZCE: 整数格式 20240102
+                df['date'] = pd.to_datetime(df['date'].astype(str), format='%Y%m%d')
+            else:
+                df['date'] = pd.to_datetime(df['date'], errors='coerce')
+
+        # 品种列
+        if 'variety' not in df.columns and 'symbol' in df.columns:
+            df['variety'] = df['symbol'].str[:2]
+
+        # 保留标准列
+        std_cols = ['date', 'open', 'high', 'low', 'close', 'volume', 'open_interest', 'symbol', 'variety']
+        keep_cols = [c for c in std_cols if c in df.columns]
+        df = df[keep_cols]
+
         return df

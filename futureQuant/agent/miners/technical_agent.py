@@ -91,8 +91,19 @@ class TechnicalMiningAgent(BaseAgent):
                 errors=["Missing 'context' in execution context"],
             )
 
-        data = mining_context.data
-        returns = mining_context.returns
+        if isinstance(mining_context, dict):
+            data = mining_context.get('data')
+            returns = mining_context.get('returns')
+        else:
+            data = mining_context.data
+            returns = mining_context.returns
+
+        if data is None or returns is None:
+            return AgentResult(
+                agent_name=self.name,
+                status=AgentStatus.FAILED,
+                errors=["Missing data or returns in mining context"],
+            )
         ic_threshold = self.config.get('ic_threshold', 0.02)
 
         self._logger.info(
@@ -224,34 +235,39 @@ class TechnicalMiningAgent(BaseAgent):
 
         # å¨éå å­
         for period in momentum_windows:
-            factors.append(MomentumFactor(period=period))
+            factors.append(MomentumFactor(name=f"MomentumFactor_{period}", period=period))
 
         for period in rsi_windows:
-            factors.append(RSIFactor(period=period))
+            factors.append(RSIFactor(name=f"RSIFactor_{period}", period=period))
 
         # MACD å å­ï¼æ åæ°ï¼
-        factors.append(MACDFactor())
+        factors.append(MACDFactor(name="MACDFactor"))
 
         for period in momentum_windows:
-            factors.append(RateOfChangeFactor(period=period))
+            factors.append(RateOfChangeFactor(name=f"RateOfChangeFactor_{period}", period=period))
 
         # æ³¢å¨çå å­
         for period in volatility_windows:
-            factors.append(ATRFactor(period=period))
+            factors.append(ATRFactor(name=f"ATRFactor_{period}", period=period))
 
         for period in volatility_windows:
-            factors.append(VolatilityFactor(period=period))
+            factors.append(VolatilityFactor(name=f"VolatilityFactor_{period}", period=period))
 
         for period in volatility_windows:
-            factors.append(BollingerBandWidthFactor(period=period))
+            factors.append(
+                BollingerBandWidthFactor(
+                    name=f"BollingerBandWidthFactor_{period}",
+                    period=period,
+                )
+            )
 
         # æäº¤éå å­
-        factors.append(OBVFactor())
+        factors.append(OBVFactor(name="OBVFactor"))
 
         for period in volume_windows:
-            factors.append(VolumeRatioFactor(period=period))
+            factors.append(VolumeRatioFactor(name=f"VolumeRatioFactor_{period}", period=period))
 
         for period in volume_windows:
-            factors.append(VolumeMAFactor(period=period))
+            factors.append(VolumeMAFactor(name=f"VolumeMAFactor_{period}", period=period))
 
         return factors

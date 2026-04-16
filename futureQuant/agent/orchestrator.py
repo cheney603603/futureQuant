@@ -11,6 +11,7 @@
 """
 
 import time
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -209,7 +210,10 @@ class MultiAgentFactorMiner:
             dm = DataManager()
             dfs = []
             for symbol in self.symbols:
-                df = dm.get_daily(symbol, self.start_date, self.end_date)
+                if re.fullmatch(r"[A-Za-z]{1,3}", symbol):
+                    df = dm.get_continuous_contract(symbol, self.start_date, self.end_date)
+                else:
+                    df = dm.get_daily_data(symbol, self.start_date, self.end_date)
                 if df is not None and not df.empty:
                     df['symbol'] = symbol
                     dfs.append(df)
