@@ -511,3 +511,118 @@ class MultiAgentFactorMiner:
         except Exception as e:
             logger.error(f"Backtest failed: {e}")
             return {'error': str(e)}
+
+
+class NaturalLanguageTaskRunner:
+    """
+    自然语言任务编排器
+
+    接收用户自然语言查询，通过 BlackboardAgent 生成 ExecutionPlan，
+    然后由 BlackboardController 按 Plan 调度各 Agent 执行。
+    """
+
+    def __init__(
+        self,
+        blackboard=None,
+        llm_client=None,
+    ):
+        from .blackboard.blackboard import Blackboard
+        from .blackboard.blackboard_controller import BlackboardController
+        from .blackboard.blackboard_agent import BlackboardAgent
+        from .blackboard.knowledge_source import KnowledgeSourceAdapter
+        from .data_collector.react_data_collector_agent import ReactDataCollectorAgent
+        from .factor_mining.react_factor_mining_agent import ReactFactorMiningAgent
+        from .fundamental.web_fundamental_agent import WebFundamentalAgent
+
+        self._bb = blackboard or Blackboard()
+        self._controller = BlackboardController(blackboard=self._bb)
+        self._blackboard_agent = BlackboardAgent(
+            blackboard=self._bb,
+            llm_client=llm_client,
+        )
+
+        # 注册各执行 Agent（包装为 KnowledgeSource）
+        data_collector = ReactDataCollectorAgent(
+            blackboard=self._bb,
+            llm_client=llm_client,
+        )
+        factor_miner = ReactFactorMiningAgent(
+            blackboard=self._bb,
+            llm_client=llm_client,
+        )
+        fundamental = WebFundamentalAgent(
+            blackboard=self._bb,
+            llm_client=llm_client,
+        )
+
+        self._controller.register_agent(
+            agent=data_collector,
+            name="data_collector",
+            priority=10,
+            input_keys=[],
+            output_key="price_data",
+        )
+        self._controller.register_agent(
+            agent=fundamental,
+            name="fundamental_analysis",
+            priority=5,
+            input_keys=["price_data"],
+            output_key="fundamental_analysis",
+        )
+        self._controller.register_agent(
+            agent=factor_miner,
+            name="factor_mining",
+            priority=5,
+            input_keys=["price_data"],
+            output_key="top_factors",
+        )
+
+    def run(self, user_query: str) -> Dict[str, Any]:
+        """
+        运行自然语言任务
+
+        Args:
+            user_query: 用户自然语言需求
+
+        Returns:
+            包含 task_id、controller_result、blackboard_snapshot 的字典
+        """
+        import uuid
+        task_id = str(uuid.uuid4())[:8]
+
+        logger.info(f"[NLTaskRunner] Starting task {task_id}: {user_query}")
+
+        # 1. 清空旧 plan（避免干扰）
+        if self._bb.exists("execution_plan"):
+            self._bb.delete("execution_plan", agent="orchestrator")
+
+        # 2. BlackboardAgent 生成计划
+        plan_result = self._blackboard_agent.execute({"user_query": user_query})
+        if not plan_result.is_success:
+            logger.warning(f"[NLTaskRunner] Plan generation failed: {plan_result.errors}")
+            return {
+                "task_id": task_id,
+                "status": "plan_failed",
+                "errors": plan_result.errors,
+                "blackboard_snapshot": self._bb.snapshot(),
+            }
+
+        # 3. BlackboardController 执行计划
+        controller_result = self._controller.execute()
+
+        status = "success" if controller_result.success else "failed"
+        return {
+            "task_id": task_id,
+            "status": status,
+            "plan": plan_result.data.get("execution_plan"),
+            "controller_result": controller_result.to_dict(),
+            "blackboard_snapshot": self._bb.snapshot(),
+        }
+
+    def get_status(self) -> Dict[str, Any]:
+        """获取当前运行状态"""
+        return {
+            "blackboard_state": self._bb.state.value,
+            "registered_agents": self._controller.get_registered_sources(),
+            "pending_interventions": self._bb.has_pending_interventions(),
+        }

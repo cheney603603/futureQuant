@@ -596,6 +596,55 @@ def page_agents():
 
     st.divider()
 
+    # 自然语言任务提交（新增）
+    st.markdown("### 🚀 Agent 任务中心")
+    with st.container():
+        col_input, col_btn = st.columns([4, 1])
+        with col_input:
+            nl_query = st.text_input(
+                "输入自然语言任务",
+                placeholder="例如：帮我分析螺纹钢最近一周的基本面并挖掘有效因子",
+                key="nl_task_input",
+            )
+        with col_btn:
+            st.markdown("<br>", unsafe_allow_html=True)
+            submit_task = st.button("提交任务", use_container_width=True, type="primary")
+
+        if submit_task and nl_query:
+            with st.spinner("任务提交中..."):
+                try:
+                    import requests
+                    resp = requests.post(
+                        "http://localhost:8000/api/agent/task",
+                        json={"query": nl_query},
+                        timeout=10,
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        st.session_state["last_task_id"] = data.get("task_id")
+                        st.success(f"任务已提交！Task ID: {data.get('task_id')}")
+                    else:
+                        st.error(f"提交失败: {resp.text}")
+                except Exception as exc:
+                    st.error(f"请求异常: {exc}")
+
+        if "last_task_id" in st.session_state:
+            task_id = st.session_state["last_task_id"]
+            st.markdown(f"**最近任务 ID**: `{task_id}`")
+            if st.button("查询任务状态"):
+                try:
+                    import requests
+                    resp = requests.get(f"http://localhost:8000/api/agent/task/{task_id}", timeout=10)
+                    if resp.status_code == 200:
+                        task_data = resp.json()
+                        st.json(task_data)
+                    else:
+                        st.error(f"查询失败: {resp.text}")
+                except Exception as exc:
+                    st.error(f"请求异常: {exc}")
+
+    st.divider()
+
     # 历史运行记录
     st.markdown("### 📋 Agent 运行历史")
     agent_runs = get_agent_run_history()

@@ -1,7 +1,7 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
+*.class
 *.so
 .Python
 build/
@@ -24,6 +24,7 @@ wheels/
 venv/
 ENV/
 env/
+.venv/
 
 # IDE
 .vscode/
@@ -45,11 +46,27 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Data
+# Data & cache
+data/
 data_cache/
 *.parquet
 factor_repo/
 *.db
 
-# Memory
-memory/
+# Factor cache (regenerable)
+.factor_cache/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Workbuddy workspace
+.workbuddy/
+
+# Temporary / scratch files
+Check.txt
+Untitled.ipynb
+_collect_*.py
+_explore_*.py
+
+# Pytest temp directories
+tests/temp/

@@ -4,6 +4,19 @@
 project_name: "futureQuant"
 version: "0.1.0"
 
+# LLM 配置
+llm:
+  provider: "openai"          # openai | ollama
+  model: "gpt-4o-mini"
+  temperature: 0.2
+  max_tokens: 4096
+  openai_api_key: ""          # 建议通过环境变量 FQ_LLM__OPENAI_API_KEY 注入
+  openai_base_url: "https://api.openai.com/v1"
+  ollama_base_url: "http://localhost:11434/v1"
+  ollama_model: "qwen2.5:14b"
+  max_retries: 3
+  timeout: 120
+
 # 数据配置
 data:
   cache_dir: "./data_cache"

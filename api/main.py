@@ -473,6 +473,65 @@ async def get_next_trading_day(date: str, exchange: str = "SHFE"):
 
 
 # =============================================================================
+# Agent 任务 API
+# =============================================================================
+
+_agent_tasks: Dict[str, Dict[str, Any]] = {}
+
+
+class AgentTaskRequest(BaseModel):
+    """Agent 任务提交请求"""
+    query: str = Field(description="用户自然语言需求")
+
+
+class AgentTaskResponse(BaseModel):
+    """Agent 任务提交响应"""
+    task_id: str
+    status: str
+    message: str
+
+
+@app.post("/api/agent/task", response_model=AgentTaskResponse)
+async def submit_agent_task(request: AgentTaskRequest, background_tasks: BackgroundTasks):
+    """提交自然语言 Agent 任务"""
+    task_id = str(uuid.uuid4())[:8]
+    _agent_tasks[task_id] = {"status": "running", "query": request.query, "result": None}
+    background_tasks.add_task(_execute_agent_task, task_id, request.query)
+    return AgentTaskResponse(
+        task_id=task_id,
+        status="running",
+        message="任务已提交，请通过 /api/agent/task/{task_id} 查询结果",
+    )
+
+
+def _execute_agent_task(task_id: str, query: str):
+    """后台执行 Agent 任务"""
+    try:
+        from futureQuant.agent.orchestrator import NaturalLanguageTaskRunner
+        runner = NaturalLanguageTaskRunner()
+        result = runner.run(query)
+        _agent_tasks[task_id]["status"] = result.get("status", "unknown")
+        _agent_tasks[task_id]["result"] = result
+    except Exception as exc:
+        _agent_tasks[task_id]["status"] = "failed"
+        _agent_tasks[task_id]["result"] = {"error": str(exc)}
+
+
+@app.get("/api/agent/task/{task_id}")
+async def get_agent_task(task_id: str):
+    """查询 Agent 任务状态与结果"""
+    if task_id not in _agent_tasks:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    return _agent_tasks[task_id]
+
+
+@app.post("/api/agent/intervention/{request_id}")
+async def respond_intervention(request_id: str, response: Dict[str, Any]):
+    """响应人工介入请求（预留接口）"""
+    return {"request_id": request_id, "received": True, "response": response}
+
+
+# =============================================================================
 # 健康检查
 # =============================================================================
 

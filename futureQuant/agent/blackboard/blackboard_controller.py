@@ -247,10 +247,169 @@ class BlackboardController:
         """
         同步执行所有知识源
         
+        如果 Blackboard 上存在 execution_plan，则优先按 Plan 调度执行。
+        否则按默认的注册顺序/依赖关系执行。
+        
         Returns:
             ControllerResult
         """
+        plan = self.blackboard.read("execution_plan", default=None)
+        if plan and isinstance(plan, dict) and plan.get("steps"):
+            return self.execute_plan(plan)
         return self._execute_sync()
+    
+    def execute_plan(self, plan: Dict[str, Any]) -> ControllerResult:
+        """
+        按 ExecutionPlan 调度执行
+        
+        Args:
+            plan: ExecutionPlan 字典，包含 goal 和 steps
+        
+        Returns:
+            ControllerResult
+        """
+        import time
+        from collections import deque
+        
+        start_time = time.time()
+        self._is_running = True
+        self.blackboard.set_state(BlackboardState.RUNNING)
+        
+        result = ControllerResult(
+            success=False,
+            state=BlackboardState.RUNNING,
+        )
+        
+        steps = plan.get("steps", [])
+        goal = plan.get("goal", "")
+        logger.info(f"[Controller] Executing plan: {goal} with {len(steps)} steps")
+        
+        # 构建 step_id -> source 映射
+        step_map = {s["step_id"]: s for s in steps}
+        completed = set()
+        failed_steps = []
+        
+        # 拓扑排序执行
+        remaining = set(step_map.keys())
+        
+        try:
+            while remaining:
+                # 找出当前可执行的 steps（依赖已满足）
+                ready = [
+                    sid for sid in remaining
+                    if all(d in completed for d in step_map[sid].get("depends_on", []))
+                ]
+                
+                if not ready:
+                    # 存在循环依赖或无法执行的 step
+                    logger.error(f"[Controller] Plan deadlock: remaining={remaining}, completed={completed}")
+                    failed_steps.extend(list(remaining))
+                    break
+                
+                for sid in ready:
+                    step = step_map[sid]
+                    agent_name = step.get("agent", "")
+                    task_desc = step.get("task", "")
+                    remaining.remove(sid)
+                    
+                    self._current_agent = agent_name
+                    logger.info(f"[Controller] Plan step {sid}: {agent_name} -> {task_desc}")
+                    
+                    # 写入进度
+                    self.blackboard.write(
+                        "plan_progress",
+                        {
+                            "current_step": sid,
+                            "agent": agent_name,
+                            "status": "running",
+                            "completed": list(completed),
+                        },
+                        agent="blackboard_controller",
+                    )
+                    
+                    source = self._sources.get(agent_name)
+                    if source is None:
+                        logger.warning(f"[Controller] Agent '{agent_name}' not registered, skipping step {sid}")
+                        result.n_skipped += 1
+                        failed_steps.append(sid)
+                        continue
+                    
+                    # 检查人类介入
+                    while self.blackboard.has_pending_interventions():
+                        logger.info("[Controller] Waiting for human intervention...")
+                        time.sleep(1)
+                        if self._check_intervention_timeout():
+                            break
+                    
+                    # 将 step 上下文写入黑板（inputs 映射）
+                    for out_key in step.get("outputs", []):
+                        # 预占 outputs 位置，初始化为 pending
+                        self.blackboard.write(
+                            out_key,
+                            {"status": "pending", "step_id": sid},
+                            agent="blackboard_controller",
+                        )
+                    
+                    # 观察并执行
+                    if not source.observe(self.blackboard):
+                        result.n_skipped += 1
+                        result.results[f"{agent_name}_step{sid}"] = KnowledgeSourceResult(
+                            source_name=agent_name,
+                            state=source.state,
+                        )
+                        failed_steps.append(sid)
+                        continue
+                    
+                    ks_result = source.execute(self.blackboard)
+                    result.results[f"{agent_name}_step{sid}"] = ks_result
+                    
+                    if ks_result.state.value == 'success':
+                        result.n_executed += 1
+                        completed.add(sid)
+                    else:
+                        result.n_failed += 1
+                        failed_steps.append(sid)
+                    
+                    if self.on_progress:
+                        self.on_progress(agent_name, ks_result.state.value, ks_result.elapsed_seconds)
+            
+            result.success = result.n_failed == 0 and len(failed_steps) == 0
+            result.state = BlackboardState.SUCCESS if result.success else BlackboardState.FAILED
+            result.elapsed_seconds = time.time() - start_time
+            result.snapshot = self.blackboard.snapshot()
+            self.blackboard.set_state(result.state)
+            
+            # 最终进度
+            self.blackboard.write(
+                "plan_progress",
+                {
+                    "status": "completed" if result.success else "failed",
+                    "completed_steps": list(completed),
+                    "failed_steps": failed_steps,
+                },
+                agent="blackboard_controller",
+            )
+            
+        except Exception as e:
+            result.state = BlackboardState.FAILED
+            result.elapsed_seconds = time.time() - start_time
+            logger.error(f"[Controller] Plan execution failed: {e}")
+        
+        finally:
+            self._is_running = False
+            self._current_agent = None
+            if self.auto_save and self.save_dir:
+                self._save_result(result)
+        
+        logger.info(
+            f"[Controller] Plan execution complete: "
+            f"success={result.success}, "
+            f"executed={result.n_executed}, "
+            f"skipped={result.n_skipped}, "
+            f"failed={result.n_failed}"
+        )
+        
+        return result
     
     async def execute_async(self) -> ControllerResult:
         """

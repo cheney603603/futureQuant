@@ -10,6 +10,23 @@ from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
 
 
+class LLMConfig(BaseModel):
+    """LLM 配置"""
+    provider: str = "openai"  # openai | ollama
+    model: str = "gpt-4o-mini"
+    temperature: float = 0.2
+    max_tokens: int = 4096
+    # OpenAI
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    # Ollama / 本地兼容接口
+    ollama_base_url: str = "http://localhost:11434/v1"
+    ollama_model: str = "qwen2.5:14b"
+    # 重试
+    max_retries: int = 3
+    timeout: int = 120
+
+
 class DataConfig(BaseModel):
     """数据配置"""
     cache_dir: str = "./data_cache"
@@ -87,6 +104,7 @@ class Config(BaseSettings):
     version: str = "0.1.0"
     
     # 子配置
+    llm: LLMConfig = Field(default_factory=LLMConfig)
     data: DataConfig = Field(default_factory=DataConfig)
     backtest: BacktestConfig = Field(default_factory=BacktestConfig)
     factor: FactorConfig = Field(default_factory=FactorConfig)

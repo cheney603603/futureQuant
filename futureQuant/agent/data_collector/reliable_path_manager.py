@@ -71,6 +71,8 @@ class ReliablePath:
     # 扩展字段：存储最后一次成功的实际数据样本信息
     last_fetch_records: int = 0
     freshness_days: int = 0  # 数据时效（天）
+    generated_by_llm: bool = False
+    source_code: str = ""
 
     @property
     def success_rate(self) -> float:

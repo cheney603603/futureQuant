@@ -36,6 +36,15 @@ plotly>=5.15.0
 # playwright>=1.40.0
 # drissionpage>=4.0.0
 
+# LLM & Search
+openai>=1.30.0
+httpx>=0.27.0
+duckduckgo-search>=6.0.0
+
+# Database
+sqlalchemy>=2.0.0
+pymysql>=1.1.0
+
 # 其他工具
 tqdm>=4.65.0
 python-dateutil>=2.8.0
