@@ -2,7 +2,8 @@
 基本面分析 Agent
 
 功能：
-- 基于价格数据模拟基本面因子（库存、基差、仓单、供需等）
+- 优先使用 FundamentalFetcher 获取真实基本面数据
+- 回退到模拟数据（当真实数据不可用时）
 - 计算利多/利空情绪评分（-5 到 +5）
 - 判断库存周期阶段（主动补库/被动补库/主动去库/被动去库）
 - 生成 Markdown 格式基本面报告，保存至 docs/reports/
@@ -10,6 +11,9 @@
 依赖：
 - futureQuant.agent.base.BaseAgent
 - futureQuant.agent.fundamental.sentiment_result.SentimentResult
+- futureQuant.data.fetcher.fundamental_fetcher.FundamentalFetcher
+
+Updated: 2026-04-18 - 集成 FundamentalFetcher 真实数据
 """
 
 from __future__ import annotations
@@ -24,6 +28,14 @@ import pandas as pd
 from ..base import AgentResult, AgentStatus, BaseAgent
 from .fundamental_report_generator import FundamentalReportGenerator
 from .sentiment_result import SentimentResult
+
+# 尝试导入 FundamentalFetcher
+try:
+    from ...data.fetcher.fundamental_fetcher import FundamentalFetcher
+    _HAS_FETCHER = True
+except ImportError:
+    _HAS_FETCHER = False
+    FundamentalFetcher = None
 
 
 class FundamentalAnalysisAgent(BaseAgent):
@@ -80,6 +92,19 @@ class FundamentalAnalysisAgent(BaseAgent):
         """
         super().__init__(name="fundamental_analysis", config=config)
         self.report_generator = FundamentalReportGenerator()
+        
+        # 初始化基本面数据获取器
+        self._fetcher: Optional[Any] = None
+        if _HAS_FETCHER:
+            try:
+                self._fetcher = FundamentalFetcher()
+                self._logger.info("FundamentalFetcher initialized successfully")
+            except Exception as e:
+                self._logger.warning(f"Failed to initialize FundamentalFetcher: {e}")
+                self._fetcher = None
+        
+        # 数据源标志
+        self._use_real_data = self._fetcher is not None
 
     def execute(self, context: Dict[str, Any]) -> AgentResult:
         """
@@ -167,6 +192,123 @@ class FundamentalAnalysisAgent(BaseAgent):
         """
         生成基本面因子序列
 
+        优先使用 FundamentalFetcher 获取真实数据，回退到模拟数据。
+
+        Args:
+            target: 标的代码
+            date_range: 日期范围
+            price_data: 价格数据（可选）
+
+        Returns:
+            DataFrame：index=date，columns=[basis_rate, inventory_level, warehouse_receipt, ...]
+        """
+        # 尝试获取真实数据
+        real_data = self._fetch_real_fundamental_data(target, date_range)
+        
+        if real_data is not None and not real_data.empty:
+            self._logger.info(f"Using REAL fundamental data for {target}")
+            return real_data
+        
+        # 回退到模拟数据
+        self._logger.info(f"Using SIMULATED fundamental data for {target}")
+        return self._generate_simulated_factors(target, date_range, price_data)
+    
+    def _fetch_real_fundamental_data(
+        self,
+        target: str,
+        date_range: tuple,
+    ) -> Optional[pd.DataFrame]:
+        """
+        从 FundamentalFetcher 获取真实基本面数据
+
+        Args:
+            target: 标的代码（如 'RB2505' 或 'RB'）
+            date_range: 日期范围
+
+        Returns:
+            DataFrame or None（获取失败时）
+        """
+        if self._fetcher is None:
+            return None
+        
+        try:
+            # 提取品种代码
+            variety = target[:2].upper()
+            
+            # 获取库存数据
+            inv_df = self._fetcher.fetch_inventory(
+                variety=variety,
+                start_date=date_range[0],
+                end_date=date_range[1],
+            )
+            
+            # 获取基差数据
+            basis_df = self._fetcher.fetch_basis(variety=variety)
+            
+            if inv_df.empty and basis_df.empty:
+                return None
+            
+            # 构建基本面因子 DataFrame
+            factors_list = []
+            
+            # 处理库存数据
+            if not inv_df.empty:
+                for _, row in inv_df.iterrows():
+                    factors_list.append({
+                        'date': row['date'],
+                        'inventory_level': row.get('inventory'),
+                        'inventory_change': row.get('change'),
+                    })
+            
+            # 合并基差数据
+            if not basis_df.empty:
+                # 基差数据只有最新一条
+                basis_row = basis_df.iloc[0]
+                basis_spot = basis_row.get('spot_price')
+                basis_near = basis_row.get('near_basis')
+                basis_dom = basis_row.get('dom_basis')
+                basis_rate = basis_row.get('near_basis_rate', 0) * 100  # 转为百分比
+            
+            # 构建完整 DataFrame
+            if factors_list:
+                df = pd.DataFrame(factors_list)
+                df['date'] = pd.to_datetime(df['date'])
+                df = df.set_index('date')
+                
+                # 添加基差数据（最近一天）
+                if not basis_df.empty:
+                    df['basis_rate'] = basis_rate
+                    df['spot_price'] = basis_spot
+                
+                # 填充缺失值
+                df = df.ffill().bfill()
+                
+                # 添加模拟的其他因子（暂无真实数据源）
+                n = len(df)
+                df['warehouse_receipt'] = df['inventory_level'] * 0.7 + np.random.normal(0, 5, n)
+                df['demand_gap'] = np.random.normal(0, 10, n)
+                df['import_profit'] = np.random.normal(0, 5, n)
+                df['operating_rate'] = 75 + np.random.normal(0, 5, n)
+                df['profit_index'] = np.random.normal(0, 20, n)
+                df['arrivals'] = 50 + np.random.normal(0, 8, n)
+                df['spread'] = np.random.normal(0, 5, n)
+                
+                return df
+            
+        except Exception as e:
+            self._logger.warning(f"Failed to fetch real fundamental data: {e}")
+        
+        return None
+    
+    def _generate_simulated_factors(
+        self,
+        target: str,
+        date_range: tuple,
+        price_data: Optional[pd.DataFrame],
+    ) -> pd.DataFrame:
+        """
+        生成模拟基本面因子序列（回退方案）
+
         基于价格数据或模拟生成合理的基本面因子值序列。
 
         Args:
@@ -188,7 +330,7 @@ class FundamentalAnalysisAgent(BaseAgent):
         # 提取价格（如果有）
         if price_data is not None and not price_data.empty:
             if "close" in price_data.columns:
-                close = price_data["close"].reindex(dates).fillna(method="ffill").fillna(method="bfill")
+                close = price_data["close"].reindex(dates).ffill().bfill()
             else:
                 close = pd.Series(4000.0, index=dates)
         else:

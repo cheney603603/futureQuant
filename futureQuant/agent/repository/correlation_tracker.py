@@ -171,7 +171,10 @@ class CorrelationTracker:
             CorrelationReport 对象
         """
         df = pd.DataFrame(factor_dict)
-        corr_matrix = df.rolling(self.window).corr().mean()
+        
+        # 计算整体相关性矩阵（不是 rolling）
+        corr_matrix = df.corr()
+        
         high_pairs = self.find_high_correlation_pairs(factor_dict)
 
         changing_pairs = []
@@ -189,9 +192,13 @@ class CorrelationTracker:
                         **change,
                     })
 
+        # 获取上三角矩阵的索引
+        upper_indices = np.triu_indices_from(corr_matrix.values, 1)
+        upper_values = corr_matrix.values[upper_indices]
+        
         summary = {
-            'mean_correlation': float(np.mean(np.abs(corr_matrix.values[np.triu_indices_from(corr_matrix.values, 1)]))),
-            'max_correlation': float(np.max(np.abs(corr_matrix.values[np.triu_indices_from(corr_matrix.values, 1)]))),
+            'mean_correlation': float(np.mean(np.abs(upper_values))) if len(upper_values) > 0 else 0.0,
+            'max_correlation': float(np.max(np.abs(upper_values))) if len(upper_values) > 0 else 0.0,
             'high_correlation_count': len(high_pairs),
             'changing_pairs_count': len(changing_pairs),
         }

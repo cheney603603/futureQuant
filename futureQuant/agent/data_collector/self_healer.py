@@ -362,7 +362,7 @@ class SelfHealer:
         # 数值列填充
         for col in df.select_dtypes(include=['number']).columns:
             if df[col].isna().any():
-                df[col] = df[col].fillna(method='ffill').fillna(method='bfill')
+                df[col] = df[col].ffill().bfill()
                 issues.append(f"filled NaN in {col}")
 
         if issues:

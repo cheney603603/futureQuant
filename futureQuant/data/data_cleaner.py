@@ -104,21 +104,21 @@ class DataCleaner:
             
             if method == 'ffill':
                 # 前向填充
-                data_filled = data_filled.fillna(method='ffill', limit=limit)
+                data_filled = data_filled.ffill(limit=limit)
                 # 后向填充剩余的 NaN
-                data_filled = data_filled.fillna(method='bfill')
+                data_filled = data_filled.bfill()
                 
             elif method == 'bfill':
                 # 后向填充
-                data_filled = data_filled.fillna(method='bfill', limit=limit)
+                data_filled = data_filled.bfill(limit=limit)
                 # 前向填充剩余的 NaN
-                data_filled = data_filled.fillna(method='ffill')
+                data_filled = data_filled.ffill()
                 
             elif method == 'interpolate':
                 # 线性插值
                 data_filled = data_filled.interpolate(method='linear', limit=limit)
                 # 填充剩余的 NaN
-                data_filled = data_filled.fillna(method='ffill').fillna(method='bfill')
+                data_filled = data_filled.ffill().bfill()
                 
             elif method == 'mean':
                 # 用均值填充
@@ -153,7 +153,7 @@ class DataCleaner:
                 # 滚动平均
                 smoothed = data.rolling(window=window, center=True).mean()
                 # 填充边界的 NaN
-                smoothed = smoothed.fillna(method='bfill').fillna(method='ffill')
+                smoothed = smoothed.bfill().ffill()
                 
             elif method == 'ewm':
                 # 指数加权平均
