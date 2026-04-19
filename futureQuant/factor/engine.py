@@ -64,14 +64,37 @@ class FactorEngine:
         """
         注册因子
         
+        如果因子名称已存在，自动添加参数后缀区分
+        例如: MomentumFactor -> MomentumFactor_window5
+        
         Args:
             factor: 因子实例
         """
-        if factor.name in self.factors:
-            logger.warning(f"Factor {factor.name} already registered, overwriting")
+        base_name = factor.name
+        name = base_name
         
-        self.factors[factor.name] = factor
-        logger.info(f"Registered factor: {factor.name}")
+        # 如果名称已存在，添加参数后缀
+        if name in self.factors:
+            # 构建参数后缀
+            if factor.params:
+                # 选择关键参数构建后缀（最多3个）
+                key_params = list(factor.params.items())[:3]
+                param_str = '_'.join([f"{k}{v}" for k, v in key_params])
+                name = f"{base_name}_{param_str}"
+            
+            # 如果还是重复，添加序号
+            counter = 1
+            original_name = name
+            while name in self.factors:
+                name = f"{original_name}_{counter}"
+                counter += 1
+            
+            # 更新因子内部名称
+            factor._name = name
+            logger.info(f"Factor renamed from {base_name} to {name} to avoid collision")
+        
+        self.factors[name] = factor
+        logger.info(f"Registered factor: {name}")
     
     def register_many(self, factors: List[Factor]):
         """批量注册因子"""

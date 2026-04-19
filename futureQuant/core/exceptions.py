@@ -61,3 +61,13 @@ class BrokerError(BacktestError):
 class AnalysisError(FutureQuantError):
     """分析错误"""
     pass
+
+
+class RiskError(FutureQuantError):
+    """风控错误"""
+    pass
+
+
+class OptimizationError(FutureQuantError):
+    """优化错误"""
+    pass

@@ -24,6 +24,7 @@ from .arbitrage import (
     FuturesSpotArbitrageStrategy,
 )
 from .optimizer import StrategyOptimizer, OptimizationResult
+from .optuna_optimizer import OptunaOptimizer, quick_optimize
 
 __all__ = [
     # 基类
@@ -46,4 +47,6 @@ __all__ = [
     # 优化
     'StrategyOptimizer',
     'OptimizationResult',
+    'OptunaOptimizer',
+    'quick_optimize',
 ]

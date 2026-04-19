@@ -12,10 +12,26 @@ from .engine import BacktestEngine
 from .broker import Broker
 from .portfolio import Portfolio
 from .recorder import TradeRecorder
+from .risk_manager import (
+    RiskManager,
+    PositionLimit,
+    StopLossConfig,
+    DrawdownConfig,
+    RiskCheckResult,
+    RiskLevel,
+    create_default_risk_manager
+)
 
 __all__ = [
     'BacktestEngine',
     'Broker',
     'Portfolio',
     'TradeRecorder',
+    'RiskManager',
+    'PositionLimit',
+    'StopLossConfig',
+    'DrawdownConfig',
+    'RiskCheckResult',
+    'RiskLevel',
+    'create_default_risk_manager',
 ]
