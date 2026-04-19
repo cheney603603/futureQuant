@@ -129,7 +129,11 @@ class AKShareFetcher(DataFetcher):
         1. 品种前缀 → 交易所
         2. 按交易所拉取全量数据（带缓存）
         3. 过滤指定品种/合约
+        4. 严格日期范围验证
         """
+        import pandas as pd
+        from datetime import datetime, timedelta
+        
         # 标准化 symbol: 取前2字符作为品种前缀
         variety = symbol[:2].upper()
         contract_code = symbol.upper()
@@ -152,33 +156,58 @@ class AKShareFetcher(DataFetcher):
                 f"({start_date} ~ {end_date})"
             )
 
+        # 标准化列（先做，用于日期列转换）
+        df = self._standardize(all_data.copy(), exchange)
+
+        # 严格日期过滤：确保数据在请求范围内
+        if 'date' in df.columns:
+            df['date'] = pd.to_datetime(df['date'], errors='coerce')
+            
+            # 移除无效日期
+            df = df[df['date'].notna()]
+            
+            # 严格按日期范围过滤
+            start_dt = pd.to_datetime(start_date)
+            end_dt = pd.to_datetime(end_date)
+            date_mask = (df['date'] >= start_dt) & (df['date'] <= end_dt)
+            
+            before_count = len(df)
+            df = df[date_mask].copy()
+            
+            # 如果过滤后数据过少，发出警告
+            if len(df) < before_count * 0.5:
+                logger.warning(
+                    f"[AKShareFetcher] {symbol}: 日期过滤后数据减少 "
+                    f"({before_count} → {len(df)})，可能存在数据问题"
+                )
+
         # 过滤：品种列匹配 或 合约代码前缀匹配
-        if 'variety' in all_data.columns:
-            mask = all_data['variety'] == variety
+        if 'variety' in df.columns:
+            mask = df['variety'] == variety
         else:
-            mask = all_data['symbol'].str.upper().str.startswith(variety)
+            mask = df['symbol'].str.upper().str.startswith(variety)
 
         # 如果输入是具体合约（如 RB2501），再过滤合约代码
         if len(contract_code) >= 4 and contract_code not in VARIETY_EXCHANGE:
-            # 排除纯品种代码本身（因为 RB 既是品种又是合约前缀）
             mask_contract = (
-                all_data['symbol'].str.upper().str.startswith(contract_code)
+                df['symbol'].str.upper().str.startswith(contract_code)
             )
             mask = mask & mask_contract
 
-        df = all_data[mask].copy()
+        df = df[mask].copy()
 
-        # 标准化列
-        df = self._standardize(df, exchange)
-
-        # 日期过滤
-        if 'date' in df.columns:
-            df['date'] = pd.to_datetime(df['date'])
-            df = df[
-                (df['date'] >= start_date) & (df['date'] <= end_date)
-            ]
-
+        # 日期排序
         df = df.sort_values('date').reset_index(drop=True)
+        
+        # 数据新鲜度检查
+        if len(df) > 0 and 'date' in df.columns:
+            latest_date = df['date'].max()
+            days_old = (datetime.now() - latest_date).days
+            if days_old > 7:
+                logger.warning(
+                    f"[AKShareFetcher] {symbol}: 数据可能过时，"
+                    f"最新数据 {days_old} 天前 ({latest_date.date()})"
+                )
 
         logger.info(
             f"[AKShareFetcher] {symbol} @ {exchange}: "

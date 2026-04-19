@@ -47,7 +47,8 @@ logs/
 Thumbs.db
 
 # Data & cache
-data/
+# 注意：只忽略根目录的 data/，不忽略 futureQuant/data/
+/data/
 data_cache/
 *.parquet
 factor_repo/
