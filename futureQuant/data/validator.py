@@ -175,7 +175,7 @@ class DataValidator:
         # 6. 数值列类型转换
         for col in ['open', 'high', 'low', 'close', 'volume']:
             if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+                df.loc[:, col] = pd.to_numeric(df[col], errors='coerce')
         
         return df
     
