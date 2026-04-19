@@ -60,7 +60,8 @@ class TestFactorEngineRegister:
         assert 'test_factor' in engine.factors
         assert engine.factors['test_factor'] is factor
     
-    def test_register_overwrites_existing(self, caplog):
+    def test_register_auto_rename_existing(self, caplog):
+        """测试重复因子自动重命名"""
         engine = FactorEngine()
         factor1 = DummyFactor(name='dup_factor')
         factor2 = DummyFactor(name='dup_factor')
@@ -68,8 +69,12 @@ class TestFactorEngineRegister:
         engine.register(factor1)
         engine.register(factor2)
         
-        assert engine.factors['dup_factor'] is factor2
-        assert 'already registered' in caplog.text.lower()
+        # 第二个因子应该被自动重命名
+        assert 'dup_factor' in engine.factors
+        assert 'dup_factor_1' in engine.factors
+        assert engine.factors['dup_factor'] is factor1
+        assert engine.factors['dup_factor_1'] is factor2
+        assert factor2.name == 'dup_factor_1'  # 内部名称已更新
     
     def test_register_many(self):
         engine = FactorEngine()
