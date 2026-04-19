@@ -341,9 +341,11 @@ class TestConstants:
     
     def test_inventory_symbols_mapping(self):
         """测试库存品种代码映射"""
-        assert INVENTORY_SYMBOLS['RB'] == 'rb'
-        assert INVENTORY_SYMBOLS['I'] == 'i'
-        assert INVENTORY_SYMBOLS['CU'] == 'cu'
+        # INVENTORY_SYMBOLS 使用中文名（用于 akshare 接口）
+        assert INVENTORY_SYMBOLS['RB'] == '螺纹钢'
+        assert INVENTORY_SYMBOLS['I'] == '铁矿石'
+        assert INVENTORY_SYMBOLS['CU'] == '铜'
+        assert INVENTORY_SYMBOLS['FG'] == '玻璃'  # 玻璃期货
 
 
 class TestErrorHandling:
