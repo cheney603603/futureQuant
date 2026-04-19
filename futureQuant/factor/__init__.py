@@ -4,6 +4,7 @@ factor 模块 - 因子库
 包含：
 - engine: 因子计算引擎
 - evaluator: 因子有效性评估（IC/ICIR）
+- input_validation: 输入验证器 P2.4
 - technical: 技术因子（动量、波动率、成交量）
 - fundamental: 基本面因子（基差、库存、仓单）
 - macro: 宏观因子
@@ -19,6 +20,17 @@ factor 模块 - 因子库
 from .engine import FactorEngine
 from .evaluator import FactorEvaluator
 from ..core.base import Factor
+
+# P2.4: 输入验证
+try:
+    from .input_validation import (
+        FactorInputValidator,
+        validate_factor_input,
+        create_validated_engine,
+    )
+    _has_validation = True
+except ImportError:
+    _has_validation = False
 
 # 技术因子
 try:
@@ -100,3 +112,10 @@ __all__ = [
     # 宏观因子
     *_macro_imports,
 ]
+
+if _has_validation:
+    __all__.extend([
+        'FactorInputValidator',
+        'validate_factor_input',
+        'create_validated_engine',
+    ])
