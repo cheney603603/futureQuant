@@ -11,6 +11,7 @@ from .database_tool import DatabaseTool
 from .memory_tool import MemoryTool
 from .progress_tool import ProgressTool
 from .web_search_tool import WebSearchTool
+from .research_tools import get_tool_specs as get_research_tool_specs
 
 __all__ = [
     "Tool",
@@ -24,4 +25,5 @@ __all__ = [
     "MemoryTool",
     "ProgressTool",
     "WebSearchTool",
+    "get_research_tool_specs",
 ]

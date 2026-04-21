@@ -4,84 +4,60 @@
 - **项目名称**: futureQuant - 期货量化研究框架
 - **项目类型**: 量化交易系统
 - **开始日期**: 2026-03-20
-- **当前版本**: v0.6.1-alpha
+- **当前版本**: v0.7.0-alpha (架构增强版)
 - **状态**: 🚀 活跃开发
-- **最后更新**: 2026-04-18
+- **最后更新**: 2026-04-20
 
 ---
 
 ## 📊 版本历史
 
-### v0.6.2-alpha (2026-04-19) - **端到端真实数据流程跑通**
+### v0.7.0-alpha (2026-04-20) - **架构增强：智能推荐系统**
 **状态**: ✅ 完成
-**完成度**: 90%
+**完成度**: 100%
 
-**本次更新内容 - 全流程验证**:
-- ✅ **端到端测试脚本** `scripts/e2e_real_data_test.py`
-  - ✅ 数据获取（akshare 真实数据）
-  - ✅ 因子计算（MomentumFactor、VolatilityFactor、VolumeRatioFactor）
-  - ✅ 回测验证（简单策略）
-  - ✅ 报告生成（Markdown 格式）
+**本次更新内容 - 参考 quant_react_interview 架构增强**:
 
-- ✅ **测试结果**
-  - 数据: 240 条 RB 日线数据（2026-03-20 ~ 2026-04-17）
-  - 因子: 3 个因子成功计算
-  - 回测: 总收益 32.60%，夏普 3.11，最大回撤 3.62%
-  - 输出: 价格/因子/库存/基差数据保存到 data/collected/
+**核心改进**：
+- ✅ **智能推荐系统** `engine/nodes/smart_recommender.py` - 根据流水线状态推荐下一步操作
+- ✅ **配置模板生成器** `engine/nodes/config_template_generator.py` - 自动生成配置模板，减少 LLM 错误
+- ✅ **流水线质量检查器** `engine/nodes/pipeline_quality_checker.py` - 检查完整性/连通性/配置正确性
+- ✅ **增强型恢复提示** `agent/enhanced_recovery_prompts.py` - 针对因子研究场景定制的恢复机制
 
-- ✅ **核心卡点解决**
-  - ✅ 提交 7 个未暂存改动
-  - ✅ 验证 akshare 数据获取接口可用
-  - ✅ 验证因子计算流程正常
-  - ✅ 验证回测引擎可运行
+**改进详情**：
+1. **SmartRecommender** - 智能推荐系统
+   - 基于规则推荐下一步操作（标准因子研究流程）
+   - 检查流水线完整性
+   - 生成完整流程配置（generate_full_flow）
 
-**遗留问题**:
-- ⚠️ 部分因子注册时名称重复（MomentumFactor 多个周期）
-- ⚠️ 基本面 Agent 接口需优化（参数传递）
+2. **ConfigTemplateGenerator** - 配置模板生成器
+   - 自动填充引用字段（如 data: $price_bars['data']）
+   - 根据上下文推断推荐值
+   - 验证并修复常见配置错误
 
-**下一步计划**:
-- [ ] 因子名称自动区分不同周期
-- [ ] 完善多品种数据获取
-- [ ] 实现 Agent 4 LSTM 模型训练
-- [ ] Web UI 接入真实数据
+3. **PipelineQualityChecker** - 流水线质量检查器
+   - 完整性检查（40分）：是否包含必要步骤
+   - 连通性检查（30分）：步骤是否正确连接
+   - 配置正确性检查（20分）：引用是否有效
+   - 最佳实践检查（10分）：是否符合因子研究最佳实践
 
-### v0.6.1-alpha (2026-04-18) - **基本面数据获取器实现 + Agent 3 集成**
-**状态**: ✅ 完成
-**完成度**: 95%
+4. **EnhancedRecoveryPrompts** - 增强型恢复提示
+   - 错误分类（missing_reference, wrong_format, execution_failed 等）
+   - 根据错误类型生成定制化恢复提示
+   - 提供具体的修复示例
 
-**本次更新内容 - 基本面数据层补全**:
-- ✅ **FundamentalFetcher** `data/fetcher/fundamental_fetcher.py` - 基于 akshare 的基本面数据获取
-  - ✅ 库存数据获取（东方财富数据源）
-  - ✅ 基差数据获取（现货-期货价差）
-  - ✅ 仓单数据获取（交易所接口，部分可能不稳定）
-  - ✅ 基本面汇总查询接口
-  - ✅ 批量获取支持
+**经验总结文档**：
+- `factor_research_architecture_analysis_20260420_231000.md`（12KB）
+  - 手写代理循环的控制模型选择
+  - 通用工具在 LLM 规划中的局限性分析
+  - 节点目录对模型有用的关键因素
+  - 因子研究工作流改进方案
 
-- ✅ **Agent 3 集成** `agent/fundamental/fundamental_agent.py` - 使用真实基本面数据
-  - ✅ 优先使用 FundamentalFetcher 获取真实数据
-  - ✅ 自动回退到模拟数据
-  - ✅ 完全向后兼容
-
-- ✅ **代码质量修复**
-  - ✅ 修复 11 处 `fillna(method='ffill')` FutureWarning
-  - ✅ 更新为 `ffill()` / `bfill()` 新语法
-
-- ✅ **单元测试** `tests/unit/test_fundamental_fetcher.py` - 25 个测试用例
-  - ✅ 初始化测试
-  - ✅ 库存数据获取测试
-  - ✅ 基差数据获取测试
-  - ✅ 仓单数据获取测试
-  - ✅ 基本面汇总测试
-  - ✅ 批量获取测试
-  - ✅ 错误处理测试
-  - ✅ 集成测试（真实数据）
-
-**测试结果**: 317 passed, 3 skipped, 1 warning ✅
-
-**下一步计划**:
-- [ ] 实现因子库版本管理
-- [ ] 集成 gplearn 遗传规划因子进化
-- [ ] 实现 Agent 4 LSTM 模型训练
+**下一步计划**：
+- [ ] 将新模块集成到 EnhancedReActAgent
+- [ ] 更新 `get_pipeline` 工具返回质量检查结果
+- [ ] 增加智能推荐到工具调用反馈
+- [ ] 完善单元测试覆盖
 
 ### v0.6.0-alpha (2026-04-02) - **Agent 全量实现 + 项目整理**
 **状态**: ✅ 完成
@@ -282,6 +258,74 @@
 ---
 
 ## 📝 工作日志
+
+### 2026-04-20 - 参考 quant_react_interview 架构增强 futureQuant（第二轮改进）
+
+**深度分析**：
+- 分析了 `quant_react_interview-main` 的控制模型、通用工具局限性和节点目录设计
+- 总结了"什么使节点目录对 LLM 真正有用"的核心经验
+- 提出了因子研究工作流的改进方案
+
+**新建文件（4个）**：
+1. `engine/nodes/smart_recommender.py` (15KB) - 智能推荐系统
+   - 根据流水线状态推荐下一步
+   - 检查完整性
+   - 生成完整流程配置
+   
+2. `engine/nodes/config_template_generator.py` (14KB) - 配置模板生成器
+   - 自动填充引用字段
+   - 根据上下文推断推荐值
+   - 验证并修复常见错误
+   
+3. `engine/nodes/pipeline_quality_checker.py` (13KB) - 流水线质量检查器
+   - 完整性检查（40分）
+   - 连通性检查（30分）
+   - 配置正确性检查（20分）
+   - 最佳实践检查（10分）
+   
+4. `agent/enhanced_recovery_prompts.py` (13KB) - 增强型恢复提示
+   - 10+ 错误类型分类
+   - 定制化恢复提示
+   - 具体修复示例
+
+**修改文件（2个）**：
+- `engine/nodes/__init__.py` - 导出新模块
+- `PROGRESS.md` - 更新版本历史
+
+**关键设计决策**：
+1. 智能推荐基于规则引擎（标准因子研究流程）
+2. 配置模板自动填充引用字段（减少 LLM 错误）
+3. 质量检查四维度评分（完整性/连通性/配置/最佳实践）
+4. 恢复提示针对因子研究场景定制
+
+**参考来源**：`D:\310Programm\quant_react_interview-main`
+
+**产出文档**：
+- `factor_research_architecture_analysis_20260420_231000.md`（12KB）
+
+### 2026-04-20 - 参考 quant_react_interview 架构增强 futureQuant（第一轮）
+
+**分析并实施**：
+- 深度分析了 `quant_react_interview-main` 的 `_LoopCoordinator` 模式、节点目录设计和通用工具表面
+- 总结了"什么使节点目录对 LLM 真正有用"的核心经验
+
+**新建文件（5个）**：
+- `futureQuant/engine/__init__.py` + `engine/nodes/__init__.py` - 引擎模块结构
+- `engine/nodes/factor_catalog.py` (25KB) - 因子研究节点目录，13种步骤类型，含 field_descriptions/output_shape/common_mistakes
+- `engine/nodes/pipeline_builder.py` (23KB) - 流水线构建器，含 ExecutionContext、$step_id['field'] 引用解析、工具接口
+- `agent/tools/research_tools.py` (10KB) - 通用工具规范，7个工具含丰富描述
+- `agent/factor_research_flow.py` (41KB) - 因子研究流程编排器，含声明式/配置式/NL 入口
+
+**修改文件（2个）**：
+- `agent/tools/__init__.py` - 新增 research_tools 导出
+- `agent/react_base.py` (21KB) - 覆盖为增强版，引入 _LoopCoordinator + 失败检测 + 恢复注入 + ReActMetrics
+
+**关键设计决策**：
+- 失败恢复优于直接终止（工具错误 → 注入修复提示 → 继续循环）
+- 节点目录信息密度：语义说明 + 访问路径 + 预判错误 + 即时执行验证
+- 保持向后兼容
+
+**参考来源**：`D:\310Programm\quant_react_interview-main`
 
 ### 2026-03-30
 - 完成代码质量改进:

@@ -3,8 +3,11 @@ Agent 模块 - 多 Agent 因子挖掘系统
 
 本模块实现了基于多 Agent 协作的自动化因子挖掘框架：
 - BaseAgent: Agent 抽象基类，定义统一接口
+- EnhancedReActAgent: 增强 ReAct 循环（失败检测 + 恢复注入）
 - MiningContext: 挖掘上下文，传递数据和中间结果
 - MultiAgentFactorMiner: 主入口类，协调各 Agent 工作
+- FactorResearchFlow: 因子研究流程编排器
+- NaturalLanguageTaskRunner: 自然语言任务入口
 
 挖掘 Agent:
 - TechnicalMiningAgent: 技术因子挖掘
